@@ -14,6 +14,7 @@ use Jot\Id\IdGenerator;
 use Jot\Random\RandomSource;
 use Jot\Storage\ArticleRepository;
 use Jot\Url\UrlValidator;
+use Jot\Web\PrivacyPolicy;
 
 require dirname(__DIR__) . '/src/Autoload.php';
 
@@ -115,6 +116,7 @@ function application(
     ArticleRepository $repository,
     FakeHttpClient $http,
     ?SequenceRandom $random = null,
+    ?PrivacyPolicy $privacy = null,
 ): Application {
     return new Application(
         $repository,
@@ -124,7 +126,41 @@ function application(
         new LengthClassifier(),
         new IdGenerator($random ?? new SequenceRandom()),
         'https://jot.cat',
+        $privacy ?? privacyPolicy(),
     );
+}
+
+function privacyPolicy(bool $complete = true): PrivacyPolicy
+{
+    $values = [
+        'JOT_PRIVACY_CONTROLLER_NAME' => 'Example Operator',
+        'JOT_PRIVACY_CONTROLLER_ADDRESS' => 'Example Street 1, Berlin',
+        'JOT_PRIVACY_CONTACT_EMAIL' => 'privacy@example.com',
+        'JOT_PRIVACY_LEGAL_BASIS' => 'Performance of the requested service and legitimate interests.',
+        'JOT_PRIVACY_PROCESSOR' => 'Example Hosting GmbH hosts the service in Germany.',
+        'JOT_PRIVACY_URL_RETENTION' => 'until the code is deleted',
+        'JOT_PRIVACY_LOG_RETENTION' => '14 days',
+        'JOT_PRIVACY_UPDATED_AT' => '2 August 2026',
+    ];
+    if (!$complete) {
+        unset($values['JOT_PRIVACY_CONTROLLER_NAME']);
+    }
+
+    $original = [];
+    foreach (array_keys($values + ['JOT_PRIVACY_CONTROLLER_NAME' => '']) as $key) {
+        $original[$key] = getenv($key);
+        if (array_key_exists($key, $values)) {
+            putenv($key . '=' . $values[$key]);
+        } else {
+            putenv($key);
+        }
+    }
+
+    $policy = PrivacyPolicy::fromEnvironment();
+    foreach ($original as $key => $value) {
+        putenv($value === false ? $key : $key . '=' . $value);
+    }
+    return $policy;
 }
 
 $tests = [];
@@ -203,6 +239,7 @@ $tests['duplicate saves reuse the ID without refetching'] = static function (): 
     $response = application($repository, $http)->handle('/https://example.com/article');
     assertSameValue(200, $response->status);
     assertContains('M7KD', $response->body);
+    assertContains('Already saved', $response->body);
     assertSameValue(0, $http->calls);
 };
 
@@ -220,7 +257,7 @@ $tests['collision exhaustion returns a generic 500'] = static function (): void 
     $repository->insert('S000', 'https://example.com/existing');
     $response = application($repository, new FakeHttpClient())->handle('/https://example.com/new');
     assertSameValue(500, $response->status);
-    assertContains('could not allocate an ID', $response->body);
+    assertContains('Jot could not finish that request. Try again.', $response->body);
 };
 
 $tests['ID lookup is case-insensitive and redirects without caching'] = static function (): void {
@@ -255,6 +292,53 @@ $tests['root page and method handling are explicit'] = static function (): void 
     $response = $app->handle('/', 'POST');
     assertSameValue(405, $response->status);
     assertSameValue('GET', $response->headers['Allow']);
+};
+
+$tests['homepage form is semantic and saves through its query parameter'] = static function (): void {
+    $repository = repository();
+    $app = application($repository, new FakeHttpClient(), new SequenceRandom([7, 19, 13]));
+    $home = $app->handle('/');
+    assertContains('<main id="main">', $home->body);
+    assertContains('<label for="url">Article URL</label>', $home->body);
+    assertContains('name="url" type="url"', $home->body);
+    assertContains('href="#main"', $home->body);
+
+    $saved = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle%3Fone%3D1%26two%3D2');
+    assertSameValue(200, $saved->status);
+    assertContains('Saved', $saved->body);
+    assertContains('data-copy-code="S7KD"', $saved->body);
+    assertSameValue('https://example.com/article?one=1&two=2', $repository->findUrlById('S7KD'));
+};
+
+$tests['invalid form input is retained and associated with its error'] = static function (): void {
+    $response = application(repository(), new FakeHttpClient())->handle('/?url=not-a-url');
+    assertSameValue(400, $response->status);
+    assertContains('value="not-a-url"', $response->body);
+    assertContains('aria-invalid="true" aria-describedby="url-error"', $response->body);
+    assertContains('id="url-error" role="alert"', $response->body);
+    assertContains('This does not look like a valid article URL.', $response->body);
+};
+
+$tests['privacy route renders configured details and fails closed when incomplete'] = static function (): void {
+    $ready = application(repository(), new FakeHttpClient(), privacy: privacyPolicy());
+    $response = $ready->handle('/privacy');
+    assertSameValue(200, $response->status);
+    assertContains('Example Operator', $response->body);
+    assertContains('privacy@example.com', $response->body);
+    assertContains('does not use non-essential cookies or analytics', $response->body);
+
+    $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false));
+    assertSameValue(503, $incomplete->handle('/privacy')->status);
+};
+
+$tests['progressive copy script and security policy support the enhanced form'] = static function (): void {
+    $script = file_get_contents(dirname(__DIR__) . '/public/app.js');
+    $frontController = file_get_contents(dirname(__DIR__) . '/public/index.php');
+    assertTrue(is_string($script));
+    assertContains('navigator.clipboard', $script);
+    assertContains('button.hidden = false', $script);
+    assertContains("script-src 'self'", (string) $frontController);
+    assertContains("form-action 'self'", (string) $frontController);
 };
 
 $failures = 0;

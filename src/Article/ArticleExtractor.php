@@ -8,13 +8,14 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Jot\Exception\HttpException;
+use Jot\Web\Copy;
 
 final class ArticleExtractor
 {
     public function wordCount(string $html): int
     {
         if (trim($html) === '') {
-            throw new HttpException(422, 'Readable article text could not be extracted.');
+            throw new HttpException(422, Copy::EXTRACTION_FAILED);
         }
 
         $document = new DOMDocument();
@@ -27,7 +28,7 @@ final class ArticleExtractor
         libxml_use_internal_errors($previous);
 
         if ($loaded === false) {
-            throw new HttpException(422, 'Readable article text could not be extracted.');
+            throw new HttpException(422, Copy::EXTRACTION_FAILED);
         }
 
         $xpath = new DOMXPath($document);
@@ -60,7 +61,7 @@ final class ArticleExtractor
             }
         }
 
-        throw new HttpException(422, 'Readable article text could not be extracted.');
+        throw new HttpException(422, Copy::EXTRACTION_FAILED);
     }
 
     private function countWords(string $text): int

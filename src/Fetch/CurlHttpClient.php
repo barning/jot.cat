@@ -7,6 +7,7 @@ namespace Jot\Fetch;
 use Jot\Exception\HttpException;
 use Jot\Url\UrlValidator;
 use Jot\Url\ValidatedUrl;
+use Jot\Web\Copy;
 
 final class CurlHttpClient implements HttpClient
 {
@@ -131,6 +132,7 @@ final class CurlHttpClient implements HttpClient
         curl_setopt_array($handle, $options);
 
         $ok = curl_exec($handle);
+        $errorNumber = curl_errno($handle);
         $error = curl_error($handle);
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         $contentType = (string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE);
@@ -140,6 +142,9 @@ final class CurlHttpClient implements HttpClient
         }
 
         if ($ok === false) {
+            if ($errorNumber === CURLE_OPERATION_TIMEDOUT) {
+                throw new HttpException(504, Copy::TIMEOUT, "cURL timeout: {$error}");
+            }
             throw new HttpException(502, 'The article could not be downloaded.', "cURL error: {$error}");
         }
 

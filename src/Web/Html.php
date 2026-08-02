@@ -6,9 +6,12 @@ namespace Jot\Web;
 
 final class Html
 {
-    public static function page(string $title, string $content): string
+    public static function page(string $title, string $content, string $description = ''): string
     {
         $safeTitle = self::escape($title);
+        $safeDescription = self::escape($description !== '' ? $description : Copy::HOME_SUPPORT);
+        $brand = Copy::BRAND;
+        $tagline = Copy::TAGLINE;
 
         return <<<HTML
 <!doctype html>
@@ -17,14 +20,20 @@ final class Html
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>{$safeTitle} · Jot</title>
+  <meta name="description" content="{$safeDescription}">
+  <title>{$safeTitle} · jot.cat</title>
   <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
 </head>
 <body>
-  <main>
-    <a class="brand" href="/">jot.cat</a>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="site-shell">
+  <header class="site-header"><a class="brand" href="/" aria-label="jot.cat home">{$brand}</a></header>
+  <main id="main">
     {$content}
   </main>
+  <footer class="site-footer"><p>{$tagline}</p><nav aria-label="Footer"><a href="/privacy">Privacy</a><a href="https://github.com/barning/jot.cat">Source</a></nav></footer>
+  </div>
 </body>
 </html>
 HTML;

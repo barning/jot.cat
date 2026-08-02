@@ -1,13 +1,13 @@
 # Jot
 
-Jot turns a long article URL into a short, handwritten ID:
+Jot turns a long article URL into a short, handwritten ID. Paste a URL into the homepage form, or use the original direct-path syntax:
 
 ```text
 https://jot.cat/https://example.com/article  →  M7KD
 https://jot.cat/M7KD                        →  302 redirect
 ```
 
-It requires PHP 8 with PDO SQLite, cURL, DOM, and mbstring. There are no Composer or JavaScript dependencies.
+It requires PHP 8 with PDO SQLite, cURL, DOM, and mbstring. There are no package-manager dependencies; the small JavaScript enhancement is optional and the form works without it.
 
 ## Local setup
 
@@ -23,5 +23,11 @@ php tests/run.php
 ```
 
 The production Apache document root must point to `public/`. Set `JOT_DB_PATH` to a writable SQLite path outside that directory and `JOT_BASE_URL` to the public origin. Initialize the database once with `php bin/init-db.php "$JOT_DB_PATH"`.
+
+Copy the privacy variables from `.env.example`, replace every placeholder with accurate deployment information, and expose them to PHP. The privacy page deliberately returns 503 when any required value is missing or the contact email is invalid. Check a deployment before releasing it with:
+
+```sh
+php bin/check-config.php
+```
 
 The fetcher only connects to public HTTP/HTTPS addresses. Localhost and private-network URLs are intentionally rejected, including after redirects.
