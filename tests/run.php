@@ -357,7 +357,10 @@ $tests['homepage form is semantic and saves through its query parameter'] = stat
     assertContains('From article to notebook', $home->body);
     assertContains('Write down <code>M7KD</code>', $home->body);
     assertContains('<details class="bookmarklet-setup">', $home->body);
+    assertContains('Save from a browser or iPhone', $home->body);
     assertContains('draggable="true" data-bookmarklet>Jot this article', $home->body);
+    assertContains('iPhone &amp; iPad', $home->body);
+    assertContains('href="https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b">Add the Jot shortcut</a>', $home->body);
     assertContains('javascript:location.href=&quot;https://jot.cat/?url=&quot;+encodeURIComponent(location.href)', $home->body);
     assertContains('<link rel="canonical" href="https://jot.cat/">', $home->body);
     assertContains('<meta property="og:image" content="https://jot.cat/social-preview.png">', $home->body);

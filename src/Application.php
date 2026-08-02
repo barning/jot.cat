@@ -119,11 +119,17 @@ final class Application
             . '<li><strong>Open it later</strong><span>Visit <code>' . $safeHost . '/M7KD</code>.</span></li></ol>'
             . '</section>'
             . '<details class="bookmarklet-setup">'
-            . '<summary>Save from bookmarks</summary>'
-            . '<div class="bookmarklet-content"><p>Drag this link to your bookmarks bar:</p>'
-            . '<p><a class="bookmarklet" href="' . $bookmarklet . '" draggable="true" data-bookmarklet>Jot this article</a></p>'
+            . '<summary>Save from a browser or iPhone</summary>'
+            . '<div class="bookmarklet-content"><div class="save-tools">'
+            . '<div class="save-tool"><p class="save-tool-label">Browser</p>'
+            . '<p>Drag this link to your bookmarks bar:</p>'
+            . '<p><a class="save-tool-link bookmarklet" href="' . $bookmarklet . '" draggable="true" data-bookmarklet>Jot this article</a></p>'
             . '<p class="bookmarklet-note">It opens Jot in the current tab. Some browsers and strict site security settings may block bookmarklets.</p>'
             . '<p class="copy-status" aria-live="polite" data-bookmarklet-status></p></div>'
+            . '<div class="save-tool"><p class="save-tool-label">iPhone &amp; iPad</p>'
+            . '<p>Add the shared shortcut to the Shortcuts app.</p>'
+            . '<p><a class="save-tool-link shortcut-link" href="' . Copy::IOS_SHORTCUT_URL . '">Add the Jot shortcut</a></p>'
+            . '</div></div></div>'
             . '</details>';
 
         $metadata = $error === null ? $this->metadata('/') : null;

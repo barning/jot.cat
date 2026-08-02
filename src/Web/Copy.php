@@ -16,6 +16,7 @@ final class Copy
     public const URL_PLACEHOLDER = 'https://example.com/article';
     public const SAVE_ACTION = 'Create a jot';
     public const SAVING_ACTION = 'Saving…';
+    public const IOS_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b';
     public const SAVED = 'Saved';
     public const ALREADY_SAVED = 'Already saved';
     public const INVALID_URL = 'This does not look like a valid article URL.';

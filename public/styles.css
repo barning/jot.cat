@@ -264,14 +264,34 @@ code {
 }
 
 .bookmarklet-content {
-  padding: 0.35rem 0 0.5rem 1.25rem;
+  padding: 0.35rem 0 0.5rem;
 }
 
 .bookmarklet-content p {
   margin-bottom: 0.75rem;
 }
 
-.bookmarklet {
+.save-tools {
+  display: grid;
+}
+
+.save-tool {
+  padding-block: 0.75rem;
+}
+
+.save-tool + .save-tool {
+  border-top: 1px solid var(--border);
+}
+
+.save-tool-label {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.save-tool-link {
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
@@ -280,6 +300,9 @@ code {
   padding: 0.55rem 0.8rem;
   font-weight: 700;
   text-decoration: none;
+}
+
+.bookmarklet {
   cursor: grab;
 }
 
@@ -475,5 +498,20 @@ code {
   .site-header {
     padding-top: 2.25rem;
     padding-bottom: 3.5rem;
+  }
+
+  .save-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .save-tool {
+    padding: 0.75rem 1.25rem 0.25rem 0;
+  }
+
+  .save-tool + .save-tool {
+    border-top: 0;
+    border-left: 1px solid var(--border);
+    padding-right: 0;
+    padding-left: 1.25rem;
   }
 }

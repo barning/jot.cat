@@ -1,6 +1,6 @@
 # Jot
 
-Jot turns an article URL into a four-character reference for a paper notebook. Paste a URL into the homepage form, use the “Jot this article” bookmarklet, or keep using the original direct-path syntax:
+Jot turns an article URL into a four-character reference for a paper notebook. Paste a URL into the homepage form, use the “Jot this article” bookmarklet, add the [Jot shortcut for iPhone and iPad](https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b), or keep using the original direct-path syntax:
 
 ```text
 https://jot.cat/https://example.com/article  →  M7KD
