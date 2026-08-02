@@ -15,6 +15,8 @@ use Jot\Random\RandomSource;
 use Jot\Storage\ArticleRepository;
 use Jot\Url\UrlValidator;
 use Jot\Web\PrivacyPolicy;
+use Jot\Web\Glyph;
+use Jot\Web\PublicUrl;
 
 require dirname(__DIR__) . '/src/Autoload.php';
 
@@ -85,6 +87,11 @@ function assertContains(string $needle, string $haystack): void
     assertTrue(str_contains($haystack, $needle), "expected output to contain {$needle}");
 }
 
+function assertNotContains(string $needle, string $haystack): void
+{
+    assertTrue(!str_contains($haystack, $needle), "expected output not to contain {$needle}");
+}
+
 function assertThrows(callable $callback, string $class, ?int $status = null): void
 {
     try {
@@ -117,6 +124,7 @@ function application(
     FakeHttpClient $http,
     ?SequenceRandom $random = null,
     ?PrivacyPolicy $privacy = null,
+    string $baseUrl = 'https://jot.cat',
 ): Application {
     return new Application(
         $repository,
@@ -125,7 +133,7 @@ function application(
         new ArticleExtractor(),
         new LengthClassifier(),
         new IdGenerator($random ?? new SequenceRandom()),
-        'https://jot.cat',
+        PublicUrl::fromString($baseUrl),
         $privacy ?? privacyPolicy(),
     );
 }
@@ -166,6 +174,37 @@ function privacyPolicy(bool $complete = true): PrivacyPolicy
 }
 
 $tests = [];
+
+$tests['public URL configuration normalizes a root origin and rejects ambiguous values'] = static function (): void {
+    $url = PublicUrl::fromString('HTTPS://JOT.EXAMPLE:8443/');
+    assertSameValue('https://jot.example:8443', $url->origin());
+    assertSameValue('jot.example:8443', $url->displayHost());
+    assertSameValue('https://jot.example:8443/M7KD', $url->absolute('/M7KD'));
+    assertContains('encodeURIComponent(location.href)', $url->bookmarklet());
+
+    foreach ([
+        'jot.example',
+        'ftp://jot.example',
+        'https://user@jot.example',
+        'https://jot.example/subpath',
+        'https://jot.example/?mode=one',
+        'https://jot.example/#top',
+        'https://bad host/',
+    ] as $invalid) {
+        assertThrows(fn () => PublicUrl::fromString($invalid), InvalidArgumentException::class);
+    }
+};
+
+$tests['glyph cells are deterministic, decorative, and derived from the complete ID'] = static function (): void {
+    assertSameValue([5, 5, 0], Glyph::cells('M7KD'));
+    assertSameValue([0, 4, 2], Glyph::cells('S4F7'));
+    assertSameValue([1, 0, 3], Glyph::cells('L2XT'));
+    assertSameValue(Glyph::cells('M7KD'), Glyph::cells('m7kd'));
+    $svg = Glyph::svg('M7KD');
+    assertContains('aria-hidden="true"', $svg);
+    assertContains('focusable="false"', $svg);
+    assertContains('currentColor', $svg);
+};
 
 $tests['URL validation accepts public-shaped HTTP URLs and rejects malformed input'] = static function (): void {
     $validator = new UrlValidator();
@@ -213,6 +252,13 @@ $tests['repository distinguishes insert, duplicate URL, and ID collision'] = sta
     assertTrue(!$collision->inserted && $collision->existingId === null);
 };
 
+$tests['database schema remains code-only with no stored glyph'] = static function (): void {
+    $initializer = file_get_contents(dirname(__DIR__) . '/bin/init-db.php');
+    assertTrue(is_string($initializer));
+    assertContains('id TEXT PRIMARY KEY', $initializer);
+    assertNotContains('glyph', strtolower($initializer));
+};
+
 $tests['saving returns HTML and preserves the source query string'] = static function (): void {
     $repository = repository();
     $http = new FakeHttpClient();
@@ -242,6 +288,8 @@ $tests['duplicate saves reuse the ID without refetching'] = static function (): 
     assertSameValue(200, $response->status);
     assertContains('M7KD', $response->body);
     assertContains('Already saved', $response->body);
+    assertContains('M — Medium read', $response->body);
+    assertNotContains('Add the mark too, if you like.', $response->body);
     assertSameValue(0, $http->calls);
 };
 
@@ -304,12 +352,39 @@ $tests['homepage form is semantic and saves through its query parameter'] = stat
     assertContains('<label for="url">Article URL</label>', $home->body);
     assertContains('name="url" type="url"', $home->body);
     assertContains('href="#main"', $home->body);
+    assertContains('Write the web down.', $home->body);
+    assertContains('four-character reference you can write in your notebook.', $home->body);
+    assertContains('From article to notebook', $home->body);
+    assertContains('Write down <code>M7KD</code>', $home->body);
+    assertContains('<details class="bookmarklet-setup">', $home->body);
+    assertContains('draggable="true" data-bookmarklet>Jot this article', $home->body);
+    assertContains('javascript:location.href=&quot;https://jot.cat/?url=&quot;+encodeURIComponent(location.href)', $home->body);
+    assertContains('<link rel="canonical" href="https://jot.cat/">', $home->body);
+    assertContains('<meta property="og:image" content="https://jot.cat/social-preview.png">', $home->body);
 
     $saved = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle%3Fone%3D1%26two%3D2');
     assertSameValue(200, $saved->status);
     assertContains('Saved', $saved->body);
     assertContains('data-copy-code="S7KD"', $saved->body);
+    assertContains('<svg class="glyph"', $saved->body);
+    assertContains('S — Short read', $saved->body);
+    assertContains('Add the mark too, if you like.', $saved->body);
+    assertContains('<link rel="canonical" href="https://jot.cat/S7KD">', $saved->body);
     assertSameValue('https://example.com/article?one=1&two=2', $repository->findUrlById('S7KD'));
+};
+
+$tests['configured public hostname drives workflow, bookmarklet, links, and metadata'] = static function (): void {
+    $repository = repository();
+    $app = application($repository, new FakeHttpClient(), new SequenceRandom([7, 19, 13]), baseUrl: 'https://notes.example/');
+    $home = $app->handle('/');
+    assertContains('<code>notes.example/M7KD</code>', $home->body);
+    assertContains('https://notes.example/?url=', $home->body);
+    assertContains('content="https://notes.example/social-preview.png"', $home->body);
+
+    $saved = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle');
+    assertContains('href="https://notes.example/S7KD"', $saved->body);
+    assertContains('<link rel="canonical" href="https://notes.example/S7KD">', $saved->body);
+    assertContains('property="og:url" content="https://notes.example/S7KD"', $saved->body);
 };
 
 $tests['invalid form input is retained and associated with its error'] = static function (): void {
@@ -319,6 +394,7 @@ $tests['invalid form input is retained and associated with its error'] = static 
     assertContains('aria-invalid="true" aria-describedby="url-error"', $response->body);
     assertContains('id="url-error" role="alert"', $response->body);
     assertContains('This does not look like a valid article URL.', $response->body);
+    assertNotContains('rel="canonical"', $response->body);
 };
 
 $tests['privacy route renders configured details and fails closed when incomplete'] = static function (): void {
@@ -332,6 +408,7 @@ $tests['privacy route renders configured details and fails closed when incomplet
     assertContains('Art. 77 DSGVO', $response->body);
     assertContains('§ 25 Abs. 2 Nr. 2 TDDDG', $response->body);
     assertContains('Berlin Commissioner for Data Protection', $response->body);
+    assertContains('<link rel="canonical" href="https://jot.cat/privacy">', $response->body);
 
     $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false));
     assertSameValue(503, $incomplete->handle('/privacy')->status);
@@ -343,8 +420,19 @@ $tests['progressive copy script and security policy support the enhanced form'] 
     assertTrue(is_string($script));
     assertContains('navigator.clipboard', $script);
     assertContains('button.hidden = false', $script);
+    assertContains('[data-bookmarklet]', $script);
     assertContains("script-src 'self'", (string) $frontController);
     assertContains("form-action 'self'", (string) $frontController);
+};
+
+$tests['social preview is a compact 1200 by 630 PNG'] = static function (): void {
+    $path = dirname(__DIR__) . '/public/social-preview.png';
+    $size = getimagesize($path);
+    assertTrue(is_array($size));
+    assertSameValue(1200, $size[0]);
+    assertSameValue(630, $size[1]);
+    assertSameValue('image/png', $size['mime']);
+    assertTrue(filesize($path) < 300_000, 'social preview should stay below 300 KB');
 };
 
 $failures = 0;

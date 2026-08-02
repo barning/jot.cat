@@ -3,8 +3,16 @@
 declare(strict_types=1);
 
 use Jot\Web\PrivacyPolicy;
+use Jot\Web\PublicUrl;
 
 require dirname(__DIR__) . '/src/Autoload.php';
+
+try {
+    $publicUrl = PublicUrl::fromString(getenv('JOT_BASE_URL') ?: 'https://jot.cat');
+} catch (InvalidArgumentException $error) {
+    fwrite(STDERR, "Invalid JOT_BASE_URL: {$error->getMessage()}\n");
+    exit(1);
+}
 
 $policy = PrivacyPolicy::fromEnvironment();
 if (!$policy->isComplete()) {
@@ -15,4 +23,4 @@ if (!$policy->isComplete()) {
     exit(1);
 }
 
-fwrite(STDOUT, "Privacy configuration is complete.\n");
+fwrite(STDOUT, "Configuration is complete for {$publicUrl->origin()}.\n");

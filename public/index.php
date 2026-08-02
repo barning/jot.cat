@@ -13,12 +13,13 @@ use Jot\Storage\ArticleRepository;
 use Jot\Url\UrlValidator;
 use Jot\Web\Copy;
 use Jot\Web\PrivacyPolicy;
+use Jot\Web\PublicUrl;
 
 require dirname(__DIR__) . '/src/Autoload.php';
 
 try {
     $databasePath = getenv('JOT_DB_PATH') ?: dirname(__DIR__) . '/var/jot.sqlite';
-    $baseUrl = getenv('JOT_BASE_URL') ?: 'https://jot.cat';
+    $publicUrl = PublicUrl::fromString(getenv('JOT_BASE_URL') ?: 'https://jot.cat');
     $validator = new UrlValidator();
     $application = new Application(
         ArticleRepository::connect($databasePath),
@@ -27,7 +28,7 @@ try {
         new ArticleExtractor(),
         new LengthClassifier(),
         new IdGenerator(new SecureRandomSource()),
-        $baseUrl,
+        $publicUrl,
         PrivacyPolicy::fromEnvironment(),
     );
     $response = $application->handle(

@@ -13,7 +13,10 @@ use Jot\Storage\ArticleRepository;
 use Jot\Url\UrlValidator;
 use Jot\Web\Html;
 use Jot\Web\Copy;
+use Jot\Web\Glyph;
+use Jot\Web\PageMetadata;
 use Jot\Web\PrivacyPolicy;
+use Jot\Web\PublicUrl;
 use Jot\Web\Response;
 use Throwable;
 
@@ -29,7 +32,7 @@ final class Application
         private ArticleExtractor $extractor,
         private LengthClassifier $classifier,
         private IdGenerator $ids,
-        private string $baseUrl,
+        private PublicUrl $publicUrl,
         private PrivacyPolicy $privacy,
     ) {
     }
@@ -90,6 +93,8 @@ final class Application
     private function home(string $value = '', ?string $error = null): Response
     {
         $safeValue = Html::escape($value);
+        $safeHost = Html::escape($this->publicUrl->displayHost());
+        $bookmarklet = Html::escape($this->publicUrl->bookmarklet());
         $invalid = $error !== null ? ' aria-invalid="true" aria-describedby="url-error"' : '';
         $errorMarkup = $error !== null
             ? '<p class="form-error" id="url-error" role="alert">' . Html::escape($error) . '</p>'
@@ -106,9 +111,29 @@ final class Application
             . ' autocorrect="off" spellcheck="false"' . $invalid . '>'
             . $errorMarkup
             . '<button type="submit" data-submit-label="' . Copy::SAVING_ACTION . '">' . Copy::SAVE_ACTION . '</button>'
-            . '</form>';
+            . '</form>'
+            . '<section class="workflow" aria-labelledby="workflow-title">'
+            . '<h2 id="workflow-title">From article to notebook</h2>'
+            . '<ol><li><strong>Save an article</strong><span>Paste its URL into Jot.</span></li>'
+            . '<li><strong>Write down <code>M7KD</code></strong><span>Keep the reference with your notes.</span></li>'
+            . '<li><strong>Open it later</strong><span>Visit <code>' . $safeHost . '/M7KD</code>.</span></li></ol>'
+            . '</section>'
+            . '<details class="bookmarklet-setup">'
+            . '<summary>Save from bookmarks</summary>'
+            . '<div class="bookmarklet-content"><p>Drag this link to your bookmarks bar:</p>'
+            . '<p><a class="bookmarklet" href="' . $bookmarklet . '" draggable="true" data-bookmarklet>Jot this article</a></p>'
+            . '<p class="bookmarklet-note">It opens Jot in the current tab. Some browsers and strict site security settings may block bookmarklets.</p>'
+            . '<p class="copy-status" aria-live="polite" data-bookmarklet-status></p></div>'
+            . '</details>';
 
-        return new Response($error === null ? 200 : 400, Html::page(Copy::HOME_TITLE, $content));
+        $metadata = $error === null ? $this->metadata('/') : null;
+        return new Response($error === null ? 200 : 400, Html::page(
+            Copy::META_TITLE,
+            $content,
+            Copy::HOME_SUPPORT,
+            'en',
+            $metadata,
+        ));
     }
 
     private function save(string $url): Response
@@ -161,14 +186,20 @@ final class Application
     {
         $safeId = Html::escape($id);
         $safeUrl = Html::escape($url);
-        $shortUrl = rtrim($this->baseUrl, '/') . '/' . $id;
+        $shortUrl = $this->publicUrl->absolute('/' . $id);
         $safeShortUrl = Html::escape($shortUrl);
         $state = $duplicate ? Copy::ALREADY_SAVED : Copy::SAVED;
+        $lengthLabel = Html::escape(Copy::lengthLabel($id[0]));
+        $glyph = Glyph::svg($id);
+        $help = $duplicate
+            ? ''
+            : '<p class="result-help">Write this code in your notebook.<br><span>Add the mark too, if you like.</span></p>';
         $content = <<<HTML
 <section class="result" aria-labelledby="result-code">
 <p class="eyebrow">{$state}</p>
-<h1 class="id" id="result-code">{$safeId}</h1>
-<p class="result-help">Write this code in your notebook.</p>
+<div class="reference">{$glyph}<h1 class="id" id="result-code">{$safeId}</h1></div>
+<p class="length-label">{$lengthLabel}</p>
+{$help}
 <div class="result-actions">
   <button type="button" class="secondary-button" hidden data-copy-code="{$safeId}">Copy code</button>
   <a class="button-link" href="{$safeShortUrl}">Open article</a>
@@ -178,7 +209,13 @@ final class Application
 </section>
 HTML;
 
-        return new Response(200, Html::page("Saved as {$id}", $content));
+        return new Response(200, Html::page(
+            "{$id} — Jot",
+            $content,
+            Copy::HOME_SUPPORT,
+            'en',
+            $this->metadata('/' . $id),
+        ));
     }
 
     private function privacy(): Response
@@ -248,6 +285,7 @@ HTML;
             $content,
             'Informationen zur Verarbeitung personenbezogener Daten durch jot.cat.',
             'de',
+            $this->metadata('/privacy', 'Datenschutzerklärung — Jot', 'Informationen zur Verarbeitung personenbezogener Daten durch Jot.'),
         ));
     }
 
@@ -256,6 +294,19 @@ HTML;
         $safeMessage = Html::escape($message);
         $content = "<section class=\"error-page\"><p class=\"eyebrow\">Error {$status}</p><h1>{$safeMessage}</h1><p><a href=\"/\">Back to Jot</a></p></section>";
         return new Response($status, Html::page('Error', $content));
+    }
+
+    private function metadata(
+        string $path,
+        string $title = Copy::META_TITLE,
+        string $description = Copy::HOME_SUPPORT,
+    ): PageMetadata {
+        return new PageMetadata(
+            $this->publicUrl->absolute($path),
+            $title,
+            $description,
+            $this->publicUrl->absolute('/social-preview.png'),
+        );
     }
 
     /** @return array{string, string} */

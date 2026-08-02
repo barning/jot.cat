@@ -30,4 +30,12 @@
       button.disabled = true;
     });
   });
+
+  document.querySelectorAll("[data-bookmarklet]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const status = document.querySelector("[data-bookmarklet-status]");
+      if (status) status.textContent = "Drag this link to your bookmarks bar, then use it on an article page.";
+    });
+  });
 })();
