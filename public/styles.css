@@ -1,0 +1,81 @@
+:root {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  color-scheme: light dark;
+  background: #f3f0e8;
+  color: #171713;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+main {
+  width: min(100%, 45rem);
+}
+
+.brand,
+a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+.brand {
+  display: inline-block;
+  margin-bottom: 4rem;
+  font-weight: 700;
+}
+
+h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 8vw, 4.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.id {
+  margin: 0;
+  font-size: clamp(5rem, 24vw, 11rem);
+  letter-spacing: -0.1em;
+}
+
+.eyebrow {
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
+}
+
+.example,
+.source {
+  overflow-wrap: anywhere;
+  color: #59584f;
+}
+
+.short-url {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+code {
+  font: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #171713;
+    color: #f3f0e8;
+  }
+
+  .example,
+  .source {
+    color: #aaa89c;
+  }
+}
