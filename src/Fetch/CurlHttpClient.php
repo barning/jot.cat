@@ -135,8 +135,6 @@ final class CurlHttpClient implements HttpClient
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         $contentType = (string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE);
         $primaryIp = (string) curl_getinfo($handle, CURLINFO_PRIMARY_IP);
-        curl_close($handle);
-
         if ($tooLarge) {
             throw new HttpException(422, 'The article is too large to process.', 'Response exceeded the 2 MiB limit.');
         }
