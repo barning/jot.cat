@@ -19,6 +19,12 @@ final class Html
         $safeLanguage = self::escape($language);
         $brand = self::escape(Copy::BRAND);
         $tagline = self::escape(Copy::TAGLINE);
+        $isGerman = strtolower($language) === 'de';
+        $skipLabel = $isGerman ? 'Zum Inhalt springen' : 'Skip to content';
+        $homeLabel = $isGerman ? 'Jot-Startseite' : 'Jot home';
+        $footerLabel = $isGerman ? 'Fußzeile' : 'Footer';
+        $privacyLabel = $isGerman ? 'Datenschutz' : 'Privacy';
+        $sourceLabel = $isGerman ? 'Quellcode' : 'Source code';
         $metadataMarkup = '';
 
         if ($metadata !== null) {
@@ -26,7 +32,9 @@ final class Html
             $metaTitle = self::escape($metadata->title);
             $metaDescription = self::escape($metadata->description);
             $image = self::escape($metadata->image);
-            $imageAlt = self::escape('Jot glyph and the code M7KD — short references for paper notebooks.');
+            $imageAlt = self::escape($isGerman
+                ? 'Jot-Zeichen und der Code M7KD — kurze Verweise für Notizbücher.'
+                : 'Jot glyph and the code M7KD — short references for paper notebooks.');
             $metadataMarkup = <<<HTML
   <link rel="canonical" href="{$canonical}">
   <meta property="og:type" content="website">
@@ -60,13 +68,13 @@ HTML;
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
+  <a class="skip-link" href="#main">{$skipLabel}</a>
   <div class="site-shell">
-  <header class="site-header"><a class="brand" href="/" aria-label="Jot home">{$brand}</a></header>
+  <header class="site-header"><a class="brand" href="/" aria-label="{$homeLabel}" translate="no">{$brand}</a></header>
   <main id="main">
     {$content}
   </main>
-  <footer class="site-footer"><p>{$tagline}</p><nav aria-label="Footer"><a href="/privacy">Privacy</a><a href="https://github.com/barning/jot.cat">Source</a></nav></footer>
+  <footer class="site-footer"><p lang="en">{$tagline}</p><nav aria-label="{$footerLabel}"><a href="/privacy">{$privacyLabel}</a><a href="https://github.com/barning/jot.cat">{$sourceLabel}</a></nav></footer>
   </div>
 </body>
 </html>

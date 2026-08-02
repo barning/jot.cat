@@ -19,12 +19,12 @@ require dirname(__DIR__) . '/src/Autoload.php';
 
 try {
     $databasePath = getenv('JOT_DB_PATH') ?: dirname(__DIR__) . '/var/jot.sqlite';
-    $publicUrl = PublicUrl::fromString(getenv('JOT_BASE_URL') ?: 'https://jot.cat');
+    $publicUrl = PublicUrl::fromEnvironment();
     $validator = new UrlValidator();
     $application = new Application(
         ArticleRepository::connect($databasePath),
         $validator,
-        new CurlHttpClient($validator, new NativeDnsResolver()),
+        new CurlHttpClient($validator, new NativeDnsResolver(), $publicUrl),
         new ArticleExtractor(),
         new LengthClassifier(),
         new IdGenerator(new SecureRandomSource()),
@@ -37,10 +37,7 @@ try {
     );
 } catch (Throwable $error) {
     error_log('[Jot] Bootstrap failure: ' . $error->getMessage());
-    $response = new Jot\Web\Response(
-        500,
-        Jot\Web\Html::page('Error', '<p class="eyebrow">Error 500</p><h1>' . Copy::UNEXPECTED . '</h1>'),
-    );
+    $response = new Jot\Web\Response(500, '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Error</title></head><body><main><p>Error 500</p><h1>' . Copy::UNEXPECTED . '</h1></main></body></html>');
 }
 
 http_response_code($response->status);

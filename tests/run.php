@@ -195,6 +195,20 @@ $tests['public URL configuration normalizes a root origin and rejects ambiguous 
     }
 };
 
+$tests['public URL configuration is required in the environment'] = static function (): void {
+    $original = getenv('JOT_BASE_URL');
+
+    try {
+        putenv('JOT_BASE_URL');
+        assertThrows(fn () => PublicUrl::fromEnvironment(), InvalidArgumentException::class);
+
+        putenv('JOT_BASE_URL=https://configured.example');
+        assertSameValue('https://configured.example', PublicUrl::fromEnvironment()->origin());
+    } finally {
+        putenv($original === false ? 'JOT_BASE_URL' : 'JOT_BASE_URL=' . $original);
+    }
+};
+
 $tests['glyph cells are deterministic, decorative, and derived from the complete ID'] = static function (): void {
     assertSameValue([5, 5, 0], Glyph::cells('M7KD'));
     assertSameValue([0, 4, 2], Glyph::cells('S4F7'));
@@ -218,7 +232,11 @@ $tests['URL validation accepts public-shaped HTTP URLs and rejects malformed inp
 $tests['SSRF policy rejects private and mixed DNS answers before connecting'] = static function (): void {
     $validator = new UrlValidator();
     foreach ([['127.0.0.1'], ['10.0.0.1'], ['::1'], ['93.184.216.34', '192.168.1.1']] as $addresses) {
-        $client = new CurlHttpClient($validator, new FakeDns($addresses));
+        $client = new CurlHttpClient(
+            $validator,
+            new FakeDns($addresses),
+            PublicUrl::fromString('https://jot.test'),
+        );
         assertThrows(fn () => $client->get('https://example.com/article'), HttpException::class, 502);
     }
 };
@@ -357,7 +375,9 @@ $tests['homepage form is semantic and saves through its query parameter'] = stat
     assertContains('From article to notebook', $home->body);
     assertContains('Write down <code>M7KD</code>', $home->body);
     assertContains('<details class="bookmarklet-setup">', $home->body);
-    assertContains('Save from a browser or iPhone', $home->body);
+    assertContains('Save from a browser, iPhone, or iPad', $home->body);
+    assertContains('data-saving-status="Saving article…"', $home->body);
+    assertContains('role="status" aria-atomic="true" data-save-status', $home->body);
     assertContains('draggable="true" data-bookmarklet>Jot this article', $home->body);
     assertContains('iPhone &amp; iPad', $home->body);
     assertContains('href="https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b">Add the Jot shortcut</a>', $home->body);
@@ -370,10 +390,24 @@ $tests['homepage form is semantic and saves through its query parameter'] = stat
     assertContains('Saved', $saved->body);
     assertContains('data-copy-code="S7KD"', $saved->body);
     assertContains('<svg class="glyph"', $saved->body);
+    assertContains('id="result-code" translate="no"', $saved->body);
+    assertContains('<bdi>https://example.com/article?one=1&amp;two=2</bdi>', $saved->body);
     assertContains('S — Short read', $saved->body);
-    assertContains('Add the mark too, if you like.', $saved->body);
+    assertContains('<div class="result-primary">', $saved->body);
+    assertContains('Write this code in your notebook.', $saved->body);
+    assertContains('Optional notebook mark', $saved->body);
+    assertContains('Add this mark beside the code if you like.', $saved->body);
+    assertNotContains('class="reference"', $saved->body);
+    $openPosition = strpos($saved->body, '>Open article</a>');
+    $copyPosition = strpos($saved->body, '>Copy code</button>');
+    assertTrue($openPosition !== false && $copyPosition !== false && $openPosition < $copyPosition);
     assertContains('<link rel="canonical" href="https://jot.cat/S7KD">', $saved->body);
     assertSameValue('https://example.com/article?one=1&two=2', $repository->findUrlById('S7KD'));
+
+    $duplicate = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle%3Fone%3D1%26two%3D2');
+    assertContains('Already saved', $duplicate->body);
+    assertContains('Optional notebook mark', $duplicate->body);
+    assertContains('Add this mark beside the code if you like.', $duplicate->body);
 };
 
 $tests['configured public hostname drives workflow, bookmarklet, links, and metadata'] = static function (): void {
@@ -382,21 +416,31 @@ $tests['configured public hostname drives workflow, bookmarklet, links, and meta
     $home = $app->handle('/');
     assertContains('<code>notes.example/M7KD</code>', $home->body);
     assertContains('https://notes.example/?url=', $home->body);
+    assertContains('<form class="save-form" action="/"', $home->body);
+    assertContains('<link rel="stylesheet" href="/styles.css">', $home->body);
+    assertContains('<script src="/app.js"', $home->body);
+    assertContains('<a class="brand" href="/"', $home->body);
+    assertContains('<a href="/privacy">Privacy</a>', $home->body);
     assertContains('content="https://notes.example/social-preview.png"', $home->body);
 
     $saved = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle');
     assertContains('href="https://notes.example/S7KD"', $saved->body);
     assertContains('<link rel="canonical" href="https://notes.example/S7KD">', $saved->body);
     assertContains('property="og:url" content="https://notes.example/S7KD"', $saved->body);
+
+    $error = $app->handle('/NOPE');
+    assertSameValue(404, $error->status);
+    assertContains('<a href="/">Back to Jot</a>', $error->body);
 };
 
 $tests['invalid form input is retained and associated with its error'] = static function (): void {
     $response = application(repository(), new FakeHttpClient())->handle('/?url=not-a-url');
     assertSameValue(400, $response->status);
     assertContains('value="not-a-url"', $response->body);
-    assertContains('aria-invalid="true" aria-describedby="url-error"', $response->body);
-    assertContains('id="url-error" role="alert"', $response->body);
-    assertContains('This does not look like a valid article URL.', $response->body);
+    assertContains('aria-invalid="true" aria-describedby="url-error" autofocus', $response->body);
+    assertContains('<p class="form-error" id="url-error">', $response->body);
+    assertNotContains('role="alert"', $response->body);
+    assertContains('Enter a complete article URL beginning with http:// or https://.', $response->body);
     assertNotContains('rel="canonical"', $response->body);
 };
 
@@ -408,6 +452,11 @@ $tests['privacy route renders configured details and fails closed when incomplet
     assertContains('privacy@example.com', $response->body);
     assertContains('<html lang="de">', $response->body);
     assertContains('Datenschutzerklärung', $response->body);
+    assertContains('>Zum Inhalt springen</a>', $response->body);
+    assertContains('aria-label="Jot-Startseite"', $response->body);
+    assertContains('aria-label="Fußzeile"', $response->body);
+    assertContains('>Quellcode</a>', $response->body);
+    assertContains('Jot-Zeichen und der Code M7KD', $response->body);
     assertContains('Art. 77 DSGVO', $response->body);
     assertContains('§ 25 Abs. 2 Nr. 2 TDDDG', $response->body);
     assertContains('Berlin Commissioner for Data Protection', $response->body);
@@ -424,8 +473,27 @@ $tests['progressive copy script and security policy support the enhanced form'] 
     assertContains('navigator.clipboard', $script);
     assertContains('button.hidden = false', $script);
     assertContains('[data-bookmarklet]', $script);
+    assertContains('form.setAttribute("aria-busy", "true")', $script);
+    assertContains('button.classList.add("is-loading")', $script);
+    assertContains('form.dataset.savingStatus', $script);
+    assertContains('delete form.dataset.submitting', $script);
     assertContains("script-src 'self'", (string) $frontController);
     assertContains("form-action 'self'", (string) $frontController);
+};
+
+$tests['editorial stylesheet preserves adaptive and accessible interface states'] = static function (): void {
+    $styles = file_get_contents(dirname(__DIR__) . '/public/styles.css');
+    assertTrue(is_string($styles));
+    assertContains('--font-editorial:', $styles);
+    assertContains('text-wrap: balance', $styles);
+    assertContains('font-variant-numeric: tabular-nums slashed-zero', $styles);
+    assertContains('@media (prefers-color-scheme: dark)', $styles);
+    assertContains('@media (prefers-contrast: more)', $styles);
+    assertContains('@media (forced-colors: active)', $styles);
+    assertContains('@media (prefers-reduced-motion: reduce)', $styles);
+    assertContains('border-inline-start:', $styles);
+    assertNotContains('transition: all', $styles);
+    assertNotContains('filter: brightness', $styles);
 };
 
 $tests['social preview is a compact 1200 by 630 PNG'] = static function (): void {

@@ -14,6 +14,17 @@ final class PublicUrl
     ) {
     }
 
+    public static function fromEnvironment(): self
+    {
+        $value = getenv('JOT_BASE_URL');
+
+        if ($value === false || trim($value) === '') {
+            throw new InvalidArgumentException('JOT_BASE_URL is required.');
+        }
+
+        return self::fromString($value);
+    }
+
     public static function fromString(string $value): self
     {
         $parts = parse_url($value);

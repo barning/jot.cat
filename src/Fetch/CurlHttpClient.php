@@ -7,7 +7,7 @@ namespace Jot\Fetch;
 use Jot\Exception\HttpException;
 use Jot\Url\UrlValidator;
 use Jot\Url\ValidatedUrl;
-use Jot\Web\Copy;
+use Jot\Web\PublicUrl;
 
 final class CurlHttpClient implements HttpClient
 {
@@ -17,6 +17,7 @@ final class CurlHttpClient implements HttpClient
     public function __construct(
         private UrlValidator $validator,
         private DnsResolver $dns,
+        private PublicUrl $publicUrl,
     ) {
     }
 
@@ -102,7 +103,7 @@ final class CurlHttpClient implements HttpClient
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_TIMEOUT => 10,
-            CURLOPT_USERAGENT => 'Jot/1.0 (+https://jot.cat/)',
+            CURLOPT_USERAGENT => 'Jot/1.0 (+' . $this->publicUrl->absolute('/') . ')',
             CURLOPT_ENCODING => '',
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,

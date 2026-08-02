@@ -8,7 +8,7 @@ use Jot\Web\PublicUrl;
 require dirname(__DIR__) . '/src/Autoload.php';
 
 try {
-    $publicUrl = PublicUrl::fromString(getenv('JOT_BASE_URL') ?: 'https://jot.cat');
+    $publicUrl = PublicUrl::fromEnvironment();
 } catch (InvalidArgumentException $error) {
     fwrite(STDERR, "Invalid JOT_BASE_URL: {$error->getMessage()}\n");
     exit(1);

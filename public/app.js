@@ -6,15 +6,10 @@
       button.hidden = false;
       button.addEventListener("click", async () => {
         const status = document.querySelector("[data-copy-status]");
-        const originalLabel = button.textContent;
 
         try {
           await clipboard.writeText(button.dataset.copyCode || "");
-          button.textContent = "Copied";
           if (status) status.textContent = "Code copied.";
-          window.setTimeout(() => {
-            button.textContent = originalLabel;
-          }, 2000);
         } catch {
           if (status) status.textContent = "Copy failed. Select the code and copy it manually.";
         }
@@ -24,10 +19,34 @@
 
   document.querySelectorAll("[data-save-form]").forEach((form) => {
     form.addEventListener("submit", (event) => {
+      if (form.dataset.submitting === "true") {
+        event.preventDefault();
+        return;
+      }
+
       const button = event.submitter;
       if (!(button instanceof HTMLButtonElement)) return;
-      button.textContent = button.dataset.submitLabel || "Saving…";
+
+      form.dataset.submitting = "true";
+      form.setAttribute("aria-busy", "true");
       button.disabled = true;
+      button.classList.add("is-loading");
+      const status = form.querySelector("[data-save-status]");
+      if (status) status.textContent = form.dataset.savingStatus || "Saving article…";
+    });
+  });
+
+  window.addEventListener("pageshow", () => {
+    document.querySelectorAll("[data-save-form]").forEach((form) => {
+      delete form.dataset.submitting;
+      form.removeAttribute("aria-busy");
+      const button = form.querySelector('button[type="submit"]');
+      if (button instanceof HTMLButtonElement) {
+        button.disabled = false;
+        button.classList.remove("is-loading");
+      }
+      const status = form.querySelector("[data-save-status]");
+      if (status) status.textContent = "";
     });
   });
 

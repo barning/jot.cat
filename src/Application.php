@@ -95,22 +95,23 @@ final class Application
         $safeValue = Html::escape($value);
         $safeHost = Html::escape($this->publicUrl->displayHost());
         $bookmarklet = Html::escape($this->publicUrl->bookmarklet());
-        $invalid = $error !== null ? ' aria-invalid="true" aria-describedby="url-error"' : '';
+        $invalid = $error !== null ? ' aria-invalid="true" aria-describedby="url-error" autofocus' : '';
         $errorMarkup = $error !== null
-            ? '<p class="form-error" id="url-error" role="alert">' . Html::escape($error) . '</p>'
+            ? '<p class="form-error" id="url-error">' . Html::escape($error) . '</p>'
             : '';
         $content = '<section class="intro" aria-labelledby="home-title">'
             . '<p class="eyebrow">' . Copy::HOME_EYEBROW . '</p>'
             . '<h1 id="home-title">' . Copy::HOME_TITLE . '</h1>'
             . '<p class="support">' . Copy::HOME_SUPPORT . '</p></section>'
-            . '<form class="save-form" action="/" method="get" data-save-form>'
+            . '<form class="save-form" action="/" method="get" data-save-form data-saving-status="' . Copy::SAVING_STATUS . '">'
             . '<label for="url">' . Copy::URL_LABEL . '</label>'
             . '<input id="url" name="url" type="url" value="' . $safeValue . '"'
             . ' placeholder="' . Copy::URL_PLACEHOLDER . '" required maxlength="4096"'
             . ' inputmode="url" enterkeyhint="go" autocomplete="url" autocapitalize="none"'
             . ' autocorrect="off" spellcheck="false"' . $invalid . '>'
             . $errorMarkup
-            . '<button type="submit" data-submit-label="' . Copy::SAVING_ACTION . '">' . Copy::SAVE_ACTION . '</button>'
+            . '<button type="submit"><span>' . Copy::SAVE_ACTION . '</span><span class="button-spinner" aria-hidden="true"></span></button>'
+            . '<p class="form-status" role="status" aria-atomic="true" data-save-status></p>'
             . '</form>'
             . '<section class="workflow" aria-labelledby="workflow-title">'
             . '<h2 id="workflow-title">From article to notebook</h2>'
@@ -119,13 +120,13 @@ final class Application
             . '<li><strong>Open it later</strong><span>Visit <code>' . $safeHost . '/M7KD</code>.</span></li></ol>'
             . '</section>'
             . '<details class="bookmarklet-setup">'
-            . '<summary>Save from a browser or iPhone</summary>'
+            . '<summary>Save from a browser, iPhone, or iPad</summary>'
             . '<div class="bookmarklet-content"><div class="save-tools">'
             . '<div class="save-tool"><p class="save-tool-label">Browser</p>'
             . '<p>Drag this link to your bookmarks bar:</p>'
             . '<p><a class="save-tool-link bookmarklet" href="' . $bookmarklet . '" draggable="true" data-bookmarklet>Jot this article</a></p>'
             . '<p class="bookmarklet-note">It opens Jot in the current tab. Some browsers and strict site security settings may block bookmarklets.</p>'
-            . '<p class="copy-status" aria-live="polite" data-bookmarklet-status></p></div>'
+            . '<p class="copy-status" role="status" aria-atomic="true" data-bookmarklet-status></p></div>'
             . '<div class="save-tool"><p class="save-tool-label">iPhone &amp; iPad</p>'
             . '<p>Add the shared shortcut to the Shortcuts app.</p>'
             . '<p><a class="save-tool-link shortcut-link" href="' . Copy::IOS_SHORTCUT_URL . '">Add the Jot shortcut</a></p>'
@@ -197,21 +198,28 @@ final class Application
         $state = $duplicate ? Copy::ALREADY_SAVED : Copy::SAVED;
         $lengthLabel = Html::escape(Copy::lengthLabel($id[0]));
         $glyph = Glyph::svg($id);
-        $help = $duplicate
-            ? ''
-            : '<p class="result-help">Write this code in your notebook.<br><span>Add the mark too, if you like.</span></p>';
+        $resultInstruction = Html::escape(Copy::RESULT_INSTRUCTION);
+        $glyphLabel = Html::escape(Copy::GLYPH_LABEL);
+        $glyphInstruction = Html::escape(Copy::GLYPH_INSTRUCTION);
         $content = <<<HTML
 <section class="result" aria-labelledby="result-code">
 <p class="eyebrow">{$state}</p>
-<div class="reference">{$glyph}<h1 class="id" id="result-code">{$safeId}</h1></div>
-<p class="length-label">{$lengthLabel}</p>
-{$help}
-<div class="result-actions">
-  <button type="button" class="secondary-button" hidden data-copy-code="{$safeId}">Copy code</button>
-  <a class="button-link" href="{$safeShortUrl}">Open article</a>
+<div class="result-primary">
+  <h1 class="id" id="result-code" translate="no">{$safeId}</h1>
+  <p class="length-label">{$lengthLabel}</p>
 </div>
-<p class="copy-status" aria-live="polite" data-copy-status></p>
-<p class="source"><span>Article</span> {$safeUrl}</p>
+<p class="result-help">{$resultInstruction}</p>
+<div class="result-mark">
+  <p class="result-mark-label">{$glyphLabel}</p>
+  <p class="result-mark-help">{$glyphInstruction}</p>
+  {$glyph}
+</div>
+<div class="result-actions">
+  <a class="button-link" href="{$safeShortUrl}">Open article</a>
+  <button type="button" class="secondary-button" hidden data-copy-code="{$safeId}">Copy code</button>
+</div>
+<p class="copy-status" role="status" aria-atomic="true" data-copy-status></p>
+<p class="source"><span>Article</span> <bdi>{$safeUrl}</bdi></p>
 </section>
 HTML;
 
@@ -289,7 +297,7 @@ HTML;
         return new Response(200, Html::page(
             'Datenschutzerklärung',
             $content,
-            'Informationen zur Verarbeitung personenbezogener Daten durch jot.cat.',
+            'Informationen zur Verarbeitung personenbezogener Daten durch Jot.',
             'de',
             $this->metadata('/privacy', 'Datenschutzerklärung — Jot', 'Informationen zur Verarbeitung personenbezogener Daten durch Jot.'),
         ));
