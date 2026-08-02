@@ -21,8 +21,10 @@ final class PrivacyPolicy
             'JOT_PRIVACY_CONTACT_EMAIL',
             'JOT_PRIVACY_LEGAL_BASIS',
             'JOT_PRIVACY_PROCESSOR',
+            'JOT_PRIVACY_THIRD_COUNTRY_TRANSFERS',
             'JOT_PRIVACY_URL_RETENTION',
             'JOT_PRIVACY_LOG_RETENTION',
+            'JOT_PRIVACY_SUPERVISORY_AUTHORITY',
             'JOT_PRIVACY_UPDATED_AT',
         ];
         $values = [];
@@ -36,6 +38,11 @@ final class PrivacyPolicy
             } else {
                 $values[$key] = $value;
             }
+        }
+
+        $dataProtectionOfficer = getenv('JOT_PRIVACY_DPO_CONTACT');
+        if (is_string($dataProtectionOfficer) && trim($dataProtectionOfficer) !== '') {
+            $values['JOT_PRIVACY_DPO_CONTACT'] = trim($dataProtectionOfficer);
         }
 
         $email = $values['JOT_PRIVACY_CONTACT_EMAIL'] ?? '';

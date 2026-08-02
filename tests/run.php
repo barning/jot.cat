@@ -138,8 +138,10 @@ function privacyPolicy(bool $complete = true): PrivacyPolicy
         'JOT_PRIVACY_CONTACT_EMAIL' => 'privacy@example.com',
         'JOT_PRIVACY_LEGAL_BASIS' => 'Performance of the requested service and legitimate interests.',
         'JOT_PRIVACY_PROCESSOR' => 'Example Hosting GmbH hosts the service in Germany.',
+        'JOT_PRIVACY_THIRD_COUNTRY_TRANSFERS' => 'No transfer to a third country takes place.',
         'JOT_PRIVACY_URL_RETENTION' => 'until the code is deleted',
         'JOT_PRIVACY_LOG_RETENTION' => '14 days',
+        'JOT_PRIVACY_SUPERVISORY_AUTHORITY' => 'Berlin Commissioner for Data Protection',
         'JOT_PRIVACY_UPDATED_AT' => '2 August 2026',
     ];
     if (!$complete) {
@@ -325,7 +327,11 @@ $tests['privacy route renders configured details and fails closed when incomplet
     assertSameValue(200, $response->status);
     assertContains('Example Operator', $response->body);
     assertContains('privacy@example.com', $response->body);
-    assertContains('does not use non-essential cookies or analytics', $response->body);
+    assertContains('<html lang="de">', $response->body);
+    assertContains('Datenschutzerklärung', $response->body);
+    assertContains('Art. 77 DSGVO', $response->body);
+    assertContains('§ 25 Abs. 2 Nr. 2 TDDDG', $response->body);
+    assertContains('Berlin Commissioner for Data Protection', $response->body);
 
     $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false));
     assertSameValue(503, $incomplete->handle('/privacy')->status);

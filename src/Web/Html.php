@@ -6,16 +6,22 @@ namespace Jot\Web;
 
 final class Html
 {
-    public static function page(string $title, string $content, string $description = ''): string
+    public static function page(
+        string $title,
+        string $content,
+        string $description = '',
+        string $language = 'en',
+    ): string
     {
         $safeTitle = self::escape($title);
         $safeDescription = self::escape($description !== '' ? $description : Copy::HOME_SUPPORT);
+        $safeLanguage = self::escape($language);
         $brand = Copy::BRAND;
         $tagline = Copy::TAGLINE;
 
         return <<<HTML
 <!doctype html>
-<html lang="en">
+<html lang="{$safeLanguage}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
