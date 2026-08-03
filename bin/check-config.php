@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Jot\Web\PrivacyPolicy;
 use Jot\Web\PublicUrl;
+use Jot\Web\UmamiConfig;
 
 require dirname(__DIR__) . '/src/Autoload.php';
 
@@ -23,4 +24,13 @@ if (!$policy->isComplete()) {
     exit(1);
 }
 
-fwrite(STDOUT, "Configuration is complete for {$publicUrl->origin()}.\n");
+$umami = UmamiConfig::fromEnvironment();
+if (!$umami->isEnabled()) {
+    $message = $umami->isMissing()
+        ? 'JOT_UMAMI_WEBSITE_ID is required.'
+        : (string) $umami->error();
+    fwrite(STDERR, "Invalid analytics configuration: {$message}\n");
+    exit(1);
+}
+
+fwrite(STDOUT, "Configuration, privacy, and Umami analytics are complete for {$publicUrl->origin()}.\n");

@@ -24,6 +24,8 @@ final class PrivacyPolicy
             'JOT_PRIVACY_THIRD_COUNTRY_TRANSFERS',
             'JOT_PRIVACY_URL_RETENTION',
             'JOT_PRIVACY_LOG_RETENTION',
+            'JOT_PRIVACY_ANALYTICS_LEGAL_BASIS',
+            'JOT_PRIVACY_ANALYTICS_RETENTION',
             'JOT_PRIVACY_SUPERVISORY_AUTHORITY',
             'JOT_PRIVACY_UPDATED_AT',
         ];

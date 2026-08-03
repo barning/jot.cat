@@ -33,3 +33,9 @@ php bin/check-config.php
 ```
 
 The fetcher only connects to public HTTP/HTTPS addresses. Localhost and private-network URLs are intentionally rejected, including after redirects.
+
+## Analytics
+
+Set `JOT_UMAMI_WEBSITE_ID` to the website UUID shown in the Umami Cloud tracking code. Jot loads the standard Umami Cloud tracker, respects Do Not Track, and sends pageviews manually so submitted article URLs and generated codes are replaced with coarse page categories. It records successful new or duplicate saves, copy outcomes, article opens, bookmarklet help, and iOS Shortcut link clicks; event properties contain only outcome and article-length categories.
+
+The application continues to work without analytics when this variable is absent or invalid, and analytics also stays disabled while the privacy configuration is incomplete. `php bin/check-config.php` treats either case as an incomplete production configuration. Before deployment, update the privacy processor, third-country transfer, analytics legal-basis, analytics-retention, and notice-date values to match the Umami Cloud account and selected data region, and complete any required data-processing agreement.

@@ -14,12 +14,22 @@ use Jot\Url\UrlValidator;
 use Jot\Web\Copy;
 use Jot\Web\PrivacyPolicy;
 use Jot\Web\PublicUrl;
+use Jot\Web\UmamiConfig;
 
 require dirname(__DIR__) . '/src/Autoload.php';
 
 try {
     $databasePath = getenv('JOT_DB_PATH') ?: dirname(__DIR__) . '/var/jot.sqlite';
     $publicUrl = PublicUrl::fromEnvironment();
+    $umami = UmamiConfig::fromEnvironment();
+    if ($umami->error() !== null) {
+        error_log('[Jot] Analytics disabled: ' . $umami->error());
+    }
+    $privacy = PrivacyPolicy::fromEnvironment();
+    if ($umami->isEnabled() && !$privacy->isComplete()) {
+        error_log('[Jot] Analytics disabled because the privacy configuration is incomplete.');
+        $umami = UmamiConfig::fromString('');
+    }
     $validator = new UrlValidator();
     $application = new Application(
         ArticleRepository::connect($databasePath),
@@ -29,7 +39,8 @@ try {
         new LengthClassifier(),
         new IdGenerator(new SecureRandomSource()),
         $publicUrl,
-        PrivacyPolicy::fromEnvironment(),
+        $privacy,
+        $umami,
     );
     $response = $application->handle(
         (string) ($_SERVER['REQUEST_URI'] ?? '/'),
@@ -46,5 +57,8 @@ foreach ($response->headers as $name => $value) {
 }
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
-header("Content-Security-Policy: default-src 'none'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+$analyticsPolicy = isset($umami) && $umami->isEnabled()
+    ? " https://cloud.umami.is"
+    : '';
+header("Content-Security-Policy: default-src 'none'; style-src 'self'; script-src 'self'{$analyticsPolicy}; connect-src 'self'{$analyticsPolicy}; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
 echo $response->body;
