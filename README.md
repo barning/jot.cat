@@ -33,3 +33,20 @@ php bin/check-config.php
 ```
 
 The fetcher only connects to public HTTP/HTTPS addresses. Localhost and private-network URLs are intentionally rejected, including after redirects.
+
+## Pageview logs
+
+Jot writes one structured pageview entry to PHP's configured error log for every application request:
+
+```text
+[Jot] pageview {"page":"/result","status":200,"method":"GET"}
+```
+
+The `page` value is limited to `/`, `/result`, `/privacy`, `/article`, or `/error/{status}`. Jot's pageview entries never contain the request URI, submitted article URL, generated code, IP address, referrer, or user agent. Static assets served directly by Apache are not counted. Apache may still write separate access logs containing raw request targets; configure their retention and contents at the hosting level.
+
+The error-log location depends on the PHP and Apache configuration. Once identified, view pageviews with:
+
+```sh
+grep '[Jot] pageview ' /path/to/php-error.log
+tail -f /path/to/php-error.log | grep --line-buffered '[Jot] pageview '
+```

@@ -14,6 +14,7 @@ use Jot\Id\IdGenerator;
 use Jot\Random\RandomSource;
 use Jot\Storage\ArticleRepository;
 use Jot\Url\UrlValidator;
+use Jot\Web\PageViewLogger;
 use Jot\Web\PrivacyPolicy;
 use Jot\Web\Glyph;
 use Jot\Web\PublicUrl;
@@ -325,6 +326,7 @@ $tests['collision exhaustion returns a generic 500'] = static function (): void 
     $repository->insert('S000', 'https://example.com/existing');
     $response = application($repository, new FakeHttpClient())->handle('/https://example.com/new');
     assertSameValue(500, $response->status);
+    assertSameValue('/error/500', $response->page);
     assertContains('Jot could not finish that request. Try again.', $response->body);
 };
 
@@ -433,6 +435,35 @@ $tests['configured public hostname drives workflow, bookmarklet, links, and meta
     assertContains('<a href="/">Back to Jot</a>', $error->body);
 };
 
+$tests['responses expose coarse page categories for server logging'] = static function (): void {
+    $repository = repository();
+    $app = application($repository, new FakeHttpClient(), new SequenceRandom([7, 19, 13]));
+
+    assertSameValue('/', $app->handle('/')->page);
+    assertSameValue('/', $app->handle('/?url=not-a-url')->page);
+    assertSameValue('/result', $app->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret')->page);
+    assertSameValue('/privacy', $app->handle('/privacy')->page);
+    assertSameValue('/article', $app->handle('/S7KD')->page);
+    assertSameValue('/error/404', $app->handle('/NOPE')->page);
+    assertSameValue('/error/405', $app->handle('/', 'POST')->page);
+
+    $failed = application(repository(), new FakeHttpClient(error: new HttpException(502, 'Download failed.')));
+    assertSameValue('/error/502', $failed->handle('/https://example.com/private')->page);
+};
+
+$tests['pageview log messages are structured and exclude request details'] = static function (): void {
+    $response = application(repository(), new FakeHttpClient(), new SequenceRandom([7, 19, 13]))
+        ->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret');
+    $message = PageViewLogger::message($response, 'get');
+
+    assertSameValue('[Jot] pageview {"page":"/result","status":200,"method":"GET"}', $message);
+    assertNotContains('https://example.com/private?token=secret', $message);
+    assertNotContains('S7KD', $message);
+
+    $payload = json_decode(substr($message, strlen('[Jot] pageview ')), true, flags: JSON_THROW_ON_ERROR);
+    assertSameValue(['page' => '/result', 'status' => 200, 'method' => 'GET'], $payload);
+};
+
 $tests['invalid form input is retained and associated with its error'] = static function (): void {
     $response = application(repository(), new FakeHttpClient())->handle('/?url=not-a-url');
     assertSameValue(400, $response->status);
@@ -459,11 +490,16 @@ $tests['privacy route renders configured details and fails closed when incomplet
     assertContains('Jot-Zeichen und der Code M7KD', $response->body);
     assertContains('Art. 77 DSGVO', $response->body);
     assertContains('§ 25 Abs. 2 Nr. 2 TDDDG', $response->body);
+    assertContains('keine browserseitigen Analyse-, Werbe- oder Trackingdienste', $response->body);
+    assertContains('technische Serverprotokolle nach groben Seitenkategorien', $response->body);
+    assertContains('keine eingegebenen Artikel-URLs, Kurzcodes, IP-Adressen, Referrer oder Browserangaben', $response->body);
+    assertNotContains('Umami', $response->body);
     assertContains('Berlin Commissioner for Data Protection', $response->body);
     assertContains('<link rel="canonical" href="https://jot.cat/privacy">', $response->body);
 
-    $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false));
-    assertSameValue(503, $incomplete->handle('/privacy')->status);
+    $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false))->handle('/privacy');
+    assertSameValue(503, $incomplete->status);
+    assertSameValue('/privacy', $incomplete->page);
 };
 
 $tests['progressive copy script and security policy support the enhanced form'] = static function (): void {
@@ -473,11 +509,16 @@ $tests['progressive copy script and security policy support the enhanced form'] 
     assertContains('navigator.clipboard', $script);
     assertContains('button.hidden = false', $script);
     assertContains('[data-bookmarklet]', $script);
+    assertNotContains('umami', strtolower($script));
+    assertNotContains('data-analytics', $script);
     assertContains('form.setAttribute("aria-busy", "true")', $script);
     assertContains('button.classList.add("is-loading")', $script);
     assertContains('form.dataset.savingStatus', $script);
     assertContains('delete form.dataset.submitting', $script);
     assertContains("script-src 'self'", (string) $frontController);
+    assertContains("connect-src 'self'", (string) $frontController);
+    assertContains('PageViewLogger::log', (string) $frontController);
+    assertNotContains('cloud.umami.is', (string) $frontController);
     assertContains("form-action 'self'", (string) $frontController);
 };
 

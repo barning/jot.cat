@@ -26,7 +26,6 @@ final class Html
         $privacyLabel = $isGerman ? 'Datenschutz' : 'Privacy';
         $sourceLabel = $isGerman ? 'Quellcode' : 'Source code';
         $metadataMarkup = '';
-
         if ($metadata !== null) {
             $canonical = self::escape($metadata->canonical);
             $metaTitle = self::escape($metadata->title);

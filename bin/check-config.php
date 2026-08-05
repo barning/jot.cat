@@ -23,4 +23,4 @@ if (!$policy->isComplete()) {
     exit(1);
 }
 
-fwrite(STDOUT, "Configuration is complete for {$publicUrl->origin()}.\n");
+fwrite(STDOUT, "Configuration and privacy are complete for {$publicUrl->origin()}.\n");

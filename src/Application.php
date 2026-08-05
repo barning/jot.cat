@@ -43,8 +43,9 @@ final class Application
             if ($method !== 'GET') {
                 return new Response(
                     405,
-                    Html::page('Method not allowed', '<p class="eyebrow">Error 405</p><h1>Only GET requests are supported.</h1>'),
+                    Html::page('Method not allowed', '<section class="error-page"><p class="eyebrow">Error 405</p><h1>Only GET requests are supported.</h1></section>'),
                     ['Content-Type' => 'text/html; charset=utf-8', 'Allow' => 'GET'],
+                    '/error/405',
                 );
             }
 
@@ -140,7 +141,7 @@ final class Application
             Copy::HOME_SUPPORT,
             'en',
             $metadata,
-        ));
+        ), page: '/');
     }
 
     private function save(string $url): Response
@@ -186,7 +187,7 @@ final class Application
             throw new HttpException(404, Copy::UNKNOWN_CODE);
         }
 
-        return new Response(302, '', ['Location' => $url, 'Cache-Control' => 'no-store']);
+        return new Response(302, '', ['Location' => $url, 'Cache-Control' => 'no-store'], '/article');
     }
 
     private function savedResponse(string $id, string $url, bool $duplicate): Response
@@ -229,7 +230,7 @@ HTML;
             Copy::HOME_SUPPORT,
             'en',
             $this->metadata('/' . $id),
-        ));
+        ), page: '/result');
     }
 
     private function privacy(): Response
@@ -238,7 +239,7 @@ HTML;
             error_log('[Jot] Missing privacy configuration: ' . implode(', ', $this->privacy->missing()));
             $content = '<p class="eyebrow">Datenschutz</p><h1>Datenschutzhinweise sind nicht verfügbar.</h1>'
                 . '<p class="support">Der Betreiber muss die Datenschutzkonfiguration vervollständigen.</p>';
-            return new Response(503, Html::page('Datenschutz nicht verfügbar', $content, '', 'de'));
+            return new Response(503, Html::page('Datenschutz nicht verfügbar', $content, '', 'de'), page: '/privacy');
         }
 
         $value = fn (string $key): string => Html::escape($this->privacy->value($key));
@@ -287,7 +288,8 @@ HTML;
   <p>Sie haben das Recht, sich nach Art. 77 DSGVO bei einer Datenschutzaufsichtsbehörde zu beschweren. Die für den Verantwortlichen zuständige Behörde ist:</p>
   <p>{$authority}</p>
   <h2>12. Cookies, Tracking und Endgerätezugriffe</h2>
-  <p>Jot setzt keine Cookies ein und verwendet keine Analyse-, Werbe- oder Trackingdienste. Jot speichert keine Informationen im Local Storage oder Session Storage Ihres Browsers.</p>
+  <p>Jot setzt keine Cookies ein und verwendet keine browserseitigen Analyse-, Werbe- oder Trackingdienste. Jot speichert keine Informationen im Local Storage oder Session Storage Ihres Browsers.</p>
+  <p>Zur einfachen Reichweitenmessung wertet der Betreiber technische Serverprotokolle nach groben Seitenkategorien aus. Die zusätzlichen Jot-Protokolleinträge enthalten ausschließlich Seitenkategorie, HTTP-Status und HTTP-Methode; sie enthalten keine eingegebenen Artikel-URLs, Kurzcodes, IP-Adressen, Referrer oder Browserangaben und ermöglichen keine Zuordnung mehrerer Aufrufe zu einer Person.</p>
   <p>Wenn Sie die Schaltfläche „Code kopieren“ betätigen, wird der angezeigte Kurzcode auf Ihre ausdrückliche Anforderung in die Zwischenablage Ihres Geräts geschrieben. Dieser Zugriff dient ausschließlich der von Ihnen gewünschten Kopierfunktion (§ 25 Abs. 2 Nr. 2 TDDDG).</p>
   <h2>13. Änderungen</h2>
   <p>Diese Datenschutzerklärung wird angepasst, wenn sich die Verarbeitung oder die rechtlichen Anforderungen ändern. Es gilt die jeweils auf dieser Seite veröffentlichte Fassung.</p>
@@ -300,14 +302,14 @@ HTML;
             'Informationen zur Verarbeitung personenbezogener Daten durch Jot.',
             'de',
             $this->metadata('/privacy', 'Datenschutzerklärung — Jot', 'Informationen zur Verarbeitung personenbezogener Daten durch Jot.'),
-        ));
+        ), page: '/privacy');
     }
 
     private function error(int $status, string $message): Response
     {
         $safeMessage = Html::escape($message);
         $content = "<section class=\"error-page\"><p class=\"eyebrow\">Error {$status}</p><h1>{$safeMessage}</h1><p><a href=\"/\">Back to Jot</a></p></section>";
-        return new Response($status, Html::page('Error', $content));
+        return new Response($status, Html::page('Error', $content), page: "/error/{$status}");
     }
 
     private function metadata(
@@ -334,4 +336,5 @@ HTML;
 
         return [substr($requestUri, 0, $position), substr($requestUri, $position + 1)];
     }
+
 }
