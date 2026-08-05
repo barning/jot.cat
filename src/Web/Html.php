@@ -12,7 +12,6 @@ final class Html
         string $description = '',
         string $language = 'en',
         ?PageMetadata $metadata = null,
-        ?UmamiConfig $umami = null,
     ): string
     {
         $safeTitle = self::escape($title);
@@ -27,15 +26,6 @@ final class Html
         $privacyLabel = $isGerman ? 'Datenschutz' : 'Privacy';
         $sourceLabel = $isGerman ? 'Quellcode' : 'Source code';
         $metadataMarkup = '';
-        $analyticsMarkup = '';
-
-        if ($umami !== null && $umami->isEnabled()) {
-            $websiteId = self::escape($umami->websiteId());
-            $analyticsMarkup = <<<HTML
-  <script defer src="https://cloud.umami.is/script.js" data-website-id="{$websiteId}" data-auto-track="false" data-exclude-search="true" data-do-not-track="true" data-before-send="umamiBeforeSend"></script>
-HTML;
-        }
-
         if ($metadata !== null) {
             $canonical = self::escape($metadata->canonical);
             $metaTitle = self::escape($metadata->title);
@@ -75,7 +65,6 @@ HTML;
 {$metadataMarkup}
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
-{$analyticsMarkup}
 </head>
 <body>
   <a class="skip-link" href="#main">{$skipLabel}</a>

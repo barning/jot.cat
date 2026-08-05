@@ -14,10 +14,10 @@ use Jot\Id\IdGenerator;
 use Jot\Random\RandomSource;
 use Jot\Storage\ArticleRepository;
 use Jot\Url\UrlValidator;
+use Jot\Web\PageViewLogger;
 use Jot\Web\PrivacyPolicy;
 use Jot\Web\Glyph;
 use Jot\Web\PublicUrl;
-use Jot\Web\UmamiConfig;
 
 require dirname(__DIR__) . '/src/Autoload.php';
 
@@ -126,7 +126,6 @@ function application(
     ?SequenceRandom $random = null,
     ?PrivacyPolicy $privacy = null,
     string $baseUrl = 'https://jot.cat',
-    ?UmamiConfig $umami = null,
 ): Application {
     return new Application(
         $repository,
@@ -137,7 +136,6 @@ function application(
         new IdGenerator($random ?? new SequenceRandom()),
         PublicUrl::fromString($baseUrl),
         $privacy ?? privacyPolicy(),
-        $umami ?? UmamiConfig::fromString(''),
     );
 }
 
@@ -152,8 +150,6 @@ function privacyPolicy(bool $complete = true): PrivacyPolicy
         'JOT_PRIVACY_THIRD_COUNTRY_TRANSFERS' => 'No transfer to a third country takes place.',
         'JOT_PRIVACY_URL_RETENTION' => 'until the code is deleted',
         'JOT_PRIVACY_LOG_RETENTION' => '14 days',
-        'JOT_PRIVACY_ANALYTICS_LEGAL_BASIS' => 'Legitimate interests in privacy-preserving audience measurement.',
-        'JOT_PRIVACY_ANALYTICS_RETENTION' => '12 months',
         'JOT_PRIVACY_SUPERVISORY_AUTHORITY' => 'Berlin Commissioner for Data Protection',
         'JOT_PRIVACY_UPDATED_AT' => '2 August 2026',
     ];
@@ -212,24 +208,6 @@ $tests['public URL configuration is required in the environment'] = static funct
     } finally {
         putenv($original === false ? 'JOT_BASE_URL' : 'JOT_BASE_URL=' . $original);
     }
-};
-
-$tests['Umami configuration accepts UUIDs and disables invalid configuration'] = static function (): void {
-    $enabled = UmamiConfig::fromString(' 94DB1CB1-74F4-4A40-AD6C-962362670409 ');
-    assertTrue($enabled->isEnabled());
-    assertSameValue('94db1cb1-74f4-4a40-ad6c-962362670409', $enabled->websiteId());
-    assertSameValue(false, $enabled->isMissing());
-    assertSameValue(null, $enabled->error());
-
-    $missing = UmamiConfig::fromString('');
-    assertSameValue(false, $missing->isEnabled());
-    assertTrue($missing->isMissing());
-    assertSameValue(null, $missing->error());
-
-    $invalid = UmamiConfig::fromString('not-a-website-id');
-    assertSameValue(false, $invalid->isEnabled());
-    assertSameValue(false, $invalid->isMissing());
-    assertContains('must be a UUID', (string) $invalid->error());
 };
 
 $tests['glyph cells are deterministic, decorative, and derived from the complete ID'] = static function (): void {
@@ -348,6 +326,7 @@ $tests['collision exhaustion returns a generic 500'] = static function (): void 
     $repository->insert('S000', 'https://example.com/existing');
     $response = application($repository, new FakeHttpClient())->handle('/https://example.com/new');
     assertSameValue(500, $response->status);
+    assertSameValue('/error/500', $response->page);
     assertContains('Jot could not finish that request. Try again.', $response->body);
 };
 
@@ -403,7 +382,7 @@ $tests['homepage form is semantic and saves through its query parameter'] = stat
     assertContains('role="status" aria-atomic="true" data-save-status', $home->body);
     assertContains('draggable="true" data-bookmarklet>Jot this article', $home->body);
     assertContains('iPhone &amp; iPad', $home->body);
-    assertContains('href="https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b" data-analytics-ios-shortcut>Add the Jot shortcut</a>', $home->body);
+    assertContains('href="https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b">Add the Jot shortcut</a>', $home->body);
     assertContains('javascript:location.href=&quot;https://jot.cat/?url=&quot;+encodeURIComponent(location.href)', $home->body);
     assertContains('<link rel="canonical" href="https://jot.cat/">', $home->body);
     assertContains('<meta property="og:image" content="https://jot.cat/social-preview.png">', $home->body);
@@ -456,34 +435,33 @@ $tests['configured public hostname drives workflow, bookmarklet, links, and meta
     assertContains('<a href="/">Back to Jot</a>', $error->body);
 };
 
-$tests['Umami tracker is conditional and uses privacy-preserving configuration'] = static function (): void {
-    $disabled = application(repository(), new FakeHttpClient())->handle('/');
-    assertNotContains('cloud.umami.is/script.js', $disabled->body);
+$tests['responses expose coarse page categories for server logging'] = static function (): void {
+    $repository = repository();
+    $app = application($repository, new FakeHttpClient(), new SequenceRandom([7, 19, 13]));
 
-    $umami = UmamiConfig::fromString('94db1cb1-74f4-4a40-ad6c-962362670409');
-    $app = application(repository(), new FakeHttpClient(), new SequenceRandom([7, 19, 13]), umami: $umami);
-    $home = $app->handle('/');
-    assertContains('src="/app.js" defer></script>', $home->body);
-    assertContains('src="https://cloud.umami.is/script.js"', $home->body);
-    assertContains('data-website-id="94db1cb1-74f4-4a40-ad6c-962362670409"', $home->body);
-    assertContains('data-auto-track="false"', $home->body);
-    assertContains('data-exclude-search="true"', $home->body);
-    assertContains('data-do-not-track="true"', $home->body);
-    assertContains('data-before-send="umamiBeforeSend"', $home->body);
-    assertTrue(
-        strpos($home->body, 'src="/app.js"') < strpos($home->body, 'src="https://cloud.umami.is/script.js"'),
-        'the sanitizer must load before the Umami tracker',
-    );
+    assertSameValue('/', $app->handle('/')->page);
+    assertSameValue('/', $app->handle('/?url=not-a-url')->page);
+    assertSameValue('/result', $app->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret')->page);
+    assertSameValue('/privacy', $app->handle('/privacy')->page);
+    assertSameValue('/article', $app->handle('/S7KD')->page);
+    assertSameValue('/error/404', $app->handle('/NOPE')->page);
+    assertSameValue('/error/405', $app->handle('/', 'POST')->page);
 
-    $saved = $app->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret');
-    assertContains('data-analytics-save-result="new"', $saved->body);
-    assertContains('data-analytics-length="short"', $saved->body);
-    assertContains('data-analytics-article-open', $saved->body);
-    assertNotContains('data-analytics-url', $saved->body);
-    assertNotContains('data-analytics-code', $saved->body);
+    $failed = application(repository(), new FakeHttpClient(error: new HttpException(502, 'Download failed.')));
+    assertSameValue('/error/502', $failed->handle('/https://example.com/private')->page);
+};
 
-    $duplicate = $app->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret');
-    assertContains('data-analytics-save-result="existing"', $duplicate->body);
+$tests['pageview log messages are structured and exclude request details'] = static function (): void {
+    $response = application(repository(), new FakeHttpClient(), new SequenceRandom([7, 19, 13]))
+        ->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret');
+    $message = PageViewLogger::message($response, 'get');
+
+    assertSameValue('[Jot] pageview {"page":"/result","status":200,"method":"GET"}', $message);
+    assertNotContains('https://example.com/private?token=secret', $message);
+    assertNotContains('S7KD', $message);
+
+    $payload = json_decode(substr($message, strlen('[Jot] pageview ')), true, flags: JSON_THROW_ON_ERROR);
+    assertSameValue(['page' => '/result', 'status' => 200, 'method' => 'GET'], $payload);
 };
 
 $tests['invalid form input is retained and associated with its error'] = static function (): void {
@@ -512,15 +490,16 @@ $tests['privacy route renders configured details and fails closed when incomplet
     assertContains('Jot-Zeichen und der Code M7KD', $response->body);
     assertContains('Art. 77 DSGVO', $response->body);
     assertContains('§ 25 Abs. 2 Nr. 2 TDDDG', $response->body);
-    assertContains('Umami Cloud', $response->body);
-    assertContains('Eingegebene Artikel-URLs und erzeugte Kurzcodes werden nicht an Umami übermittelt.', $response->body);
-    assertContains('Legitimate interests in privacy-preserving audience measurement.', $response->body);
-    assertContains('Analysedaten in Umami Cloud: 12 months', $response->body);
+    assertContains('keine browserseitigen Analyse-, Werbe- oder Trackingdienste', $response->body);
+    assertContains('technische Serverprotokolle nach groben Seitenkategorien', $response->body);
+    assertContains('keine eingegebenen Artikel-URLs, Kurzcodes, IP-Adressen, Referrer oder Browserangaben', $response->body);
+    assertNotContains('Umami', $response->body);
     assertContains('Berlin Commissioner for Data Protection', $response->body);
     assertContains('<link rel="canonical" href="https://jot.cat/privacy">', $response->body);
 
-    $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false));
-    assertSameValue(503, $incomplete->handle('/privacy')->status);
+    $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false))->handle('/privacy');
+    assertSameValue(503, $incomplete->status);
+    assertSameValue('/privacy', $incomplete->page);
 };
 
 $tests['progressive copy script and security policy support the enhanced form'] = static function (): void {
@@ -530,22 +509,16 @@ $tests['progressive copy script and security policy support the enhanced form'] 
     assertContains('navigator.clipboard', $script);
     assertContains('button.hidden = false', $script);
     assertContains('[data-bookmarklet]', $script);
-    assertContains('window.umamiBeforeSend', $script);
-    assertContains('url: context.path', $script);
-    assertContains('const { referrer: _referrer, data, ...sanitized } = payload', $script);
-    assertContains('trackEvent("article-saved"', $script);
-    assertContains('trackEvent("code-copy"', $script);
-    assertContains('trackEvent("article-open"', $script);
-    assertContains('trackEvent("bookmarklet-help")', $script);
-    assertContains('trackEvent("ios-shortcut-open")', $script);
+    assertNotContains('umami', strtolower($script));
+    assertNotContains('data-analytics', $script);
     assertContains('form.setAttribute("aria-busy", "true")', $script);
     assertContains('button.classList.add("is-loading")', $script);
     assertContains('form.dataset.savingStatus', $script);
     assertContains('delete form.dataset.submitting', $script);
     assertContains("script-src 'self'", (string) $frontController);
     assertContains("connect-src 'self'", (string) $frontController);
-    assertContains('https://cloud.umami.is', (string) $frontController);
-    assertContains('Analytics disabled because the privacy configuration is incomplete.', (string) $frontController);
+    assertContains('PageViewLogger::log', (string) $frontController);
+    assertNotContains('cloud.umami.is', (string) $frontController);
     assertContains("form-action 'self'", (string) $frontController);
 };
 

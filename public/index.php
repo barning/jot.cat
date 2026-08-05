@@ -12,24 +12,16 @@ use Jot\Random\SecureRandomSource;
 use Jot\Storage\ArticleRepository;
 use Jot\Url\UrlValidator;
 use Jot\Web\Copy;
+use Jot\Web\PageViewLogger;
 use Jot\Web\PrivacyPolicy;
 use Jot\Web\PublicUrl;
-use Jot\Web\UmamiConfig;
 
 require dirname(__DIR__) . '/src/Autoload.php';
 
 try {
     $databasePath = getenv('JOT_DB_PATH') ?: dirname(__DIR__) . '/var/jot.sqlite';
     $publicUrl = PublicUrl::fromEnvironment();
-    $umami = UmamiConfig::fromEnvironment();
-    if ($umami->error() !== null) {
-        error_log('[Jot] Analytics disabled: ' . $umami->error());
-    }
     $privacy = PrivacyPolicy::fromEnvironment();
-    if ($umami->isEnabled() && !$privacy->isComplete()) {
-        error_log('[Jot] Analytics disabled because the privacy configuration is incomplete.');
-        $umami = UmamiConfig::fromString('');
-    }
     $validator = new UrlValidator();
     $application = new Application(
         ArticleRepository::connect($databasePath),
@@ -40,7 +32,6 @@ try {
         new IdGenerator(new SecureRandomSource()),
         $publicUrl,
         $privacy,
-        $umami,
     );
     $response = $application->handle(
         (string) ($_SERVER['REQUEST_URI'] ?? '/'),
@@ -48,8 +39,10 @@ try {
     );
 } catch (Throwable $error) {
     error_log('[Jot] Bootstrap failure: ' . $error->getMessage());
-    $response = new Jot\Web\Response(500, '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Error</title></head><body><main><p>Error 500</p><h1>' . Copy::UNEXPECTED . '</h1></main></body></html>');
+    $response = new Jot\Web\Response(500, '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Error</title></head><body><main><p>Error 500</p><h1>' . Copy::UNEXPECTED . '</h1></main></body></html>', page: '/error/500');
 }
+
+PageViewLogger::log($response, (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 http_response_code($response->status);
 foreach ($response->headers as $name => $value) {
@@ -57,8 +50,5 @@ foreach ($response->headers as $name => $value) {
 }
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
-$analyticsPolicy = isset($umami) && $umami->isEnabled()
-    ? " https://cloud.umami.is"
-    : '';
-header("Content-Security-Policy: default-src 'none'; style-src 'self'; script-src 'self'{$analyticsPolicy}; connect-src 'self'{$analyticsPolicy}; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+header("Content-Security-Policy: default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
 echo $response->body;

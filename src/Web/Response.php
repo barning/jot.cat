@@ -11,6 +11,7 @@ final class Response
         public int $status,
         public string $body = '',
         public array $headers = ['Content-Type' => 'text/html; charset=utf-8'],
+        public string $page = '/',
     ) {
     }
 }

@@ -34,8 +34,19 @@ php bin/check-config.php
 
 The fetcher only connects to public HTTP/HTTPS addresses. Localhost and private-network URLs are intentionally rejected, including after redirects.
 
-## Analytics
+## Pageview logs
 
-Set `JOT_UMAMI_WEBSITE_ID` to the website UUID shown in the Umami Cloud tracking code. Jot loads the standard Umami Cloud tracker, respects Do Not Track, and sends pageviews manually so submitted article URLs and generated codes are replaced with coarse page categories. It records successful new or duplicate saves, copy outcomes, article opens, bookmarklet help, and iOS Shortcut link clicks; event properties contain only outcome and article-length categories.
+Jot writes one structured pageview entry to PHP's configured error log for every application request:
 
-The application continues to work without analytics when this variable is absent or invalid, and analytics also stays disabled while the privacy configuration is incomplete. `php bin/check-config.php` treats either case as an incomplete production configuration. Before deployment, update the privacy processor, third-country transfer, analytics legal-basis, analytics-retention, and notice-date values to match the Umami Cloud account and selected data region, and complete any required data-processing agreement.
+```text
+[Jot] pageview {"page":"/result","status":200,"method":"GET"}
+```
+
+The `page` value is limited to `/`, `/result`, `/privacy`, `/article`, or `/error/{status}`. Jot's pageview entries never contain the request URI, submitted article URL, generated code, IP address, referrer, or user agent. Static assets served directly by Apache are not counted. Apache may still write separate access logs containing raw request targets; configure their retention and contents at the hosting level.
+
+The error-log location depends on the PHP and Apache configuration. Once identified, view pageviews with:
+
+```sh
+grep '[Jot] pageview ' /path/to/php-error.log
+tail -f /path/to/php-error.log | grep --line-buffered '[Jot] pageview '
+```

@@ -18,7 +18,6 @@ use Jot\Web\PageMetadata;
 use Jot\Web\PrivacyPolicy;
 use Jot\Web\PublicUrl;
 use Jot\Web\Response;
-use Jot\Web\UmamiConfig;
 use Throwable;
 
 final class Application
@@ -35,7 +34,6 @@ final class Application
         private IdGenerator $ids,
         private PublicUrl $publicUrl,
         private PrivacyPolicy $privacy,
-        private UmamiConfig $umami,
     ) {
     }
 
@@ -45,8 +43,9 @@ final class Application
             if ($method !== 'GET') {
                 return new Response(
                     405,
-                    Html::page('Method not allowed', '<section class="error-page" data-analytics-error-status="405"><p class="eyebrow">Error 405</p><h1>Only GET requests are supported.</h1></section>', umami: $this->umami),
+                    Html::page('Method not allowed', '<section class="error-page"><p class="eyebrow">Error 405</p><h1>Only GET requests are supported.</h1></section>'),
                     ['Content-Type' => 'text/html; charset=utf-8', 'Allow' => 'GET'],
+                    '/error/405',
                 );
             }
 
@@ -131,7 +130,7 @@ final class Application
             . '<p class="copy-status" role="status" aria-atomic="true" data-bookmarklet-status></p></div>'
             . '<div class="save-tool"><p class="save-tool-label">iPhone &amp; iPad</p>'
             . '<p>Add the shared shortcut to the Shortcuts app.</p>'
-            . '<p><a class="save-tool-link shortcut-link" href="' . Copy::IOS_SHORTCUT_URL . '" data-analytics-ios-shortcut>Add the Jot shortcut</a></p>'
+            . '<p><a class="save-tool-link shortcut-link" href="' . Copy::IOS_SHORTCUT_URL . '">Add the Jot shortcut</a></p>'
             . '</div></div></div>'
             . '</details>';
 
@@ -142,8 +141,7 @@ final class Application
             Copy::HOME_SUPPORT,
             'en',
             $metadata,
-            $this->umami,
-        ));
+        ), page: '/');
     }
 
     private function save(string $url): Response
@@ -189,7 +187,7 @@ final class Application
             throw new HttpException(404, Copy::UNKNOWN_CODE);
         }
 
-        return new Response(302, '', ['Location' => $url, 'Cache-Control' => 'no-store']);
+        return new Response(302, '', ['Location' => $url, 'Cache-Control' => 'no-store'], '/article');
     }
 
     private function savedResponse(string $id, string $url, bool $duplicate): Response
@@ -205,7 +203,7 @@ final class Application
         $glyphLabel = Html::escape(Copy::GLYPH_LABEL);
         $glyphInstruction = Html::escape(Copy::GLYPH_INSTRUCTION);
         $content = <<<HTML
-<section class="result" aria-labelledby="result-code" data-analytics-save-result="{$this->analyticsSaveResult($duplicate)}" data-analytics-length="{$this->analyticsLength($id[0])}">
+<section class="result" aria-labelledby="result-code">
 <p class="eyebrow">{$state}</p>
 <div class="result-primary">
   <h1 class="id" id="result-code" translate="no">{$safeId}</h1>
@@ -218,7 +216,7 @@ final class Application
   {$glyph}
 </div>
 <div class="result-actions">
-  <a class="button-link" href="{$safeShortUrl}" data-analytics-article-open>Open article</a>
+  <a class="button-link" href="{$safeShortUrl}">Open article</a>
   <button type="button" class="secondary-button" hidden data-copy-code="{$safeId}">Copy code</button>
 </div>
 <p class="copy-status" role="status" aria-atomic="true" data-copy-status></p>
@@ -232,8 +230,7 @@ HTML;
             Copy::HOME_SUPPORT,
             'en',
             $this->metadata('/' . $id),
-            $this->umami,
-        ));
+        ), page: '/result');
     }
 
     private function privacy(): Response
@@ -242,7 +239,7 @@ HTML;
             error_log('[Jot] Missing privacy configuration: ' . implode(', ', $this->privacy->missing()));
             $content = '<p class="eyebrow">Datenschutz</p><h1>Datenschutzhinweise sind nicht verfügbar.</h1>'
                 . '<p class="support">Der Betreiber muss die Datenschutzkonfiguration vervollständigen.</p>';
-            return new Response(503, Html::page('Datenschutz nicht verfügbar', $content, '', 'de', umami: $this->umami));
+            return new Response(503, Html::page('Datenschutz nicht verfügbar', $content, '', 'de'), page: '/privacy');
         }
 
         $value = fn (string $key): string => Html::escape($this->privacy->value($key));
@@ -270,7 +267,6 @@ HTML;
   <h2>3. Zwecke und Rechtsgrundlagen</h2>
   <p>Die Verarbeitung erfolgt, um die Website bereitzustellen, die angeforderte URL abzurufen, einen Kurzcode zu erzeugen und aufzulösen sowie Missbrauch abzuwehren und technische Fehler zu untersuchen.</p>
   <p>{$value('JOT_PRIVACY_LEGAL_BASIS')}</p>
-  <p>Für die nachfolgend beschriebene datensparsame Reichweitenmessung gilt: {$value('JOT_PRIVACY_ANALYTICS_LEGAL_BASIS')}</p>
   <h2>4. Abruf der Zielseite</h2>
   <p>Zum Erstellen eines Codes ruft der Jot-Server die eingegebene URL beim Betreiber der Zielseite ab. Dabei erhält dieser Betreiber technisch bedingt insbesondere die IP-Adresse des Jot-Servers, die angeforderte URL, Zeitpunkt und technische Angaben der Serveranfrage. Ihre eigene IP-Adresse wird von Jot nicht an die Zielseite weitergegeben.</p>
   <h2>5. Empfänger und Auftragsverarbeiter</h2>
@@ -281,7 +277,6 @@ HTML;
   <h2>7. Speicherdauer</h2>
   <p>Eingegebene URLs, Kurzcodes und zugehörige Zeitstempel: {$value('JOT_PRIVACY_URL_RETENTION')}</p>
   <p>Technische Protokolldaten: {$value('JOT_PRIVACY_LOG_RETENTION')}</p>
-  <p>Analysedaten in Umami Cloud: {$value('JOT_PRIVACY_ANALYTICS_RETENTION')}</p>
   <h2>8. Bereitstellung der Daten</h2>
   <p>Die Eingabe einer URL ist freiwillig. Ohne die URL kann Jot keinen Kurzcode erstellen. Technisch erforderliche Verbindungsdaten fallen beim Aufruf der Website automatisch an; ohne ihre Verarbeitung kann die Website nicht bereitgestellt werden.</p>
   <h2>9. Automatisierte Entscheidungen</h2>
@@ -293,9 +288,8 @@ HTML;
   <p>Sie haben das Recht, sich nach Art. 77 DSGVO bei einer Datenschutzaufsichtsbehörde zu beschweren. Die für den Verantwortlichen zuständige Behörde ist:</p>
   <p>{$authority}</p>
   <h2>12. Cookies, Tracking und Endgerätezugriffe</h2>
-  <p>Jot verwendet Umami Cloud zur datensparsamen Reichweitenmessung. Dabei werden normalisierte Seitenkategorien, Ereignisnamen und die bei einzelnen Ereignissen angegebenen Kategorien sowie technische Angaben wie Browser, Betriebssystem, Gerätetyp, Sprache, Bildschirmgröße und ungefähres Herkunftsland verarbeitet. Die IP-Adresse wird technisch zur Übermittlung und Anonymisierung verarbeitet. Eingegebene Artikel-URLs und erzeugte Kurzcodes werden nicht an Umami übermittelt.</p>
-  <p>Erfasst werden Aufrufe der Start-, Ergebnis-, Datenschutz- und Fehlerseiten sowie das erfolgreiche Speichern eines neuen oder bereits vorhandenen Artikels, das erfolgreiche oder fehlgeschlagene Kopieren eines Codes, das Öffnen eines Artikels und Aufrufe der Bookmarklet- beziehungsweise Kurzbefehls-Hilfe.</p>
-  <p>Umami setzt auf dieser Website keine Cookies ein. Jot speichert für die Analyse keine Informationen im Local Storage oder Session Storage Ihres Browsers und respektiert die „Do Not Track“-Einstellung des Browsers.</p>
+  <p>Jot setzt keine Cookies ein und verwendet keine browserseitigen Analyse-, Werbe- oder Trackingdienste. Jot speichert keine Informationen im Local Storage oder Session Storage Ihres Browsers.</p>
+  <p>Zur einfachen Reichweitenmessung wertet der Betreiber technische Serverprotokolle nach groben Seitenkategorien aus. Die zusätzlichen Jot-Protokolleinträge enthalten ausschließlich Seitenkategorie, HTTP-Status und HTTP-Methode; sie enthalten keine eingegebenen Artikel-URLs, Kurzcodes, IP-Adressen, Referrer oder Browserangaben und ermöglichen keine Zuordnung mehrerer Aufrufe zu einer Person.</p>
   <p>Wenn Sie die Schaltfläche „Code kopieren“ betätigen, wird der angezeigte Kurzcode auf Ihre ausdrückliche Anforderung in die Zwischenablage Ihres Geräts geschrieben. Dieser Zugriff dient ausschließlich der von Ihnen gewünschten Kopierfunktion (§ 25 Abs. 2 Nr. 2 TDDDG).</p>
   <h2>13. Änderungen</h2>
   <p>Diese Datenschutzerklärung wird angepasst, wenn sich die Verarbeitung oder die rechtlichen Anforderungen ändern. Es gilt die jeweils auf dieser Seite veröffentlichte Fassung.</p>
@@ -308,15 +302,14 @@ HTML;
             'Informationen zur Verarbeitung personenbezogener Daten durch Jot.',
             'de',
             $this->metadata('/privacy', 'Datenschutzerklärung — Jot', 'Informationen zur Verarbeitung personenbezogener Daten durch Jot.'),
-            $this->umami,
-        ));
+        ), page: '/privacy');
     }
 
     private function error(int $status, string $message): Response
     {
         $safeMessage = Html::escape($message);
-        $content = "<section class=\"error-page\" data-analytics-error-status=\"{$status}\"><p class=\"eyebrow\">Error {$status}</p><h1>{$safeMessage}</h1><p><a href=\"/\">Back to Jot</a></p></section>";
-        return new Response($status, Html::page('Error', $content, umami: $this->umami));
+        $content = "<section class=\"error-page\"><p class=\"eyebrow\">Error {$status}</p><h1>{$safeMessage}</h1><p><a href=\"/\">Back to Jot</a></p></section>";
+        return new Response($status, Html::page('Error', $content), page: "/error/{$status}");
     }
 
     private function metadata(
@@ -344,18 +337,4 @@ HTML;
         return [substr($requestUri, 0, $position), substr($requestUri, $position + 1)];
     }
 
-    private function analyticsSaveResult(bool $duplicate): string
-    {
-        return $duplicate ? 'existing' : 'new';
-    }
-
-    private function analyticsLength(string $prefix): string
-    {
-        return match ($prefix) {
-            'S' => 'short',
-            'M' => 'medium',
-            'L' => 'long',
-            default => 'unknown',
-        };
-    }
 }
