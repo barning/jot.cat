@@ -1,5 +1,14 @@
 # Jot
 
+This repository contains two deliberately separate implementations:
+
+- The original standalone PHP service in `public/`, `src/`, and `bin/`. It remains the current compatibility path for existing four-character links.
+- [Jot Library for WordPress](wordpress-plugin/jot-library/README.md), an installable plugin that adds a curated public library, five-character references, an authenticated save flow, and safe legacy import tooling.
+
+The WordPress plugin is additive. Installing it does not move traffic, change DNS, read the standalone SQLite database, or retire the old service. Follow the plugin's [migration and cutover guide](wordpress-plugin/jot-library/MIGRATION.md) before changing either hostname.
+
+## Standalone service
+
 Jot turns an article URL into a four-character reference for a paper notebook. Paste a URL into the homepage form, use the “Jot this article” bookmarklet, add the [Jot shortcut for iPhone and iPad](https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b), or keep using the original direct-path syntax:
 
 ```text
