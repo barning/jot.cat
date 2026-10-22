@@ -13,5 +13,5 @@ cp "$source_directory/jot-library.php" "$source_directory/readme.txt" "$source_d
 find "$staging_directory" -type f -name '.DS_Store' -delete
 
 cd "$staging_directory"
-zip -qr "$output_directory/jot-library-0.1.2.zip" jot-library
-printf 'Built %s\n' "$output_directory/jot-library-0.1.2.zip"
+zip -qr "$output_directory/jot-library-0.1.3.zip" jot-library
+printf 'Built %s\n' "$output_directory/jot-library-0.1.3.zip"

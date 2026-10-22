@@ -127,13 +127,17 @@ final class Library_Block {
 		}
 
 		$content_text = '' !== $notes ? $notes : $description;
+		$copy_status_id = wp_unique_id('jot-library-copy-status-');
+		$short_url = home_url('/j/' . rawurlencode($code));
 
 		return '<li class="jot-library__entry">'
 			. '<div class="jot-library__content"><h3><a href="' . esc_url($url) . '" rel="noopener noreferrer">' . esc_html(get_the_title($post_id)) . '</a></h3>'
 			. '<p class="jot-library__source">' . esc_html($source) . '</p>'
 			. ('' !== $content_text ? '<p class="jot-library__description">' . esc_html($content_text) . '</p>' : '')
 			. $topics
-			. '<div class="jot-library__reference">' . Glyph::svg($code) . '<span class="jot-library__reference-label">' . esc_html__('Short link', 'jot-library') . '</span><a class="jot-library__code" href="' . esc_url(home_url('/j/' . rawurlencode($code))) . '">' . esc_html($code) . '<span class="screen-reader-text"> ' . esc_html__('— open original resource', 'jot-library') . '</span></a></div>'
+			. '<div class="jot-library__reference">' . Glyph::svg($code) . '<span class="jot-library__reference-label">' . esc_html__('Short link', 'jot-library') . '</span>'
+			. '<span class="jot-library__copy"><button class="jot-library__code" type="button" aria-label="' . esc_attr(sprintf(__('Copy short link for %s', 'jot-library'), $code)) . '" aria-describedby="' . esc_attr($copy_status_id) . '" data-jot-copy-url="' . esc_url($short_url) . '" data-jot-copy-success="' . esc_attr__('Short link copied', 'jot-library') . '" data-jot-copy-error="' . esc_attr__('Copy failed', 'jot-library') . '">' . esc_html($code) . '</button>'
+			. '<span class="jot-library__copy-status" id="' . esc_attr($copy_status_id) . '" role="status" aria-live="polite" aria-atomic="true"></span></span></div>'
 			. '</div></li>';
 	}
 

@@ -3,7 +3,7 @@ Contributors: barning
 Tags: bookmarks, library, links, block
 Requires at least: 7.0
 Requires PHP: 8.0
-Stable tag: 0.1.2
+Stable tag: 0.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,6 +35,10 @@ No. Deactivation preserves all data. Uninstall also preserves data unless an adm
 No. Hostname, DNS, proxy, and production routing changes are outside the plugin. Follow MIGRATION.md before cutover.
 
 == Changelog ==
+
+= 0.1.3 =
+
+* Make public-list short codes copy their complete short URL with accessible tooltip feedback.
 
 = 0.1.2 =
 

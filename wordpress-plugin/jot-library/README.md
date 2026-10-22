@@ -12,7 +12,7 @@ Build the installable archive from the repository root:
 bin/build-wordpress-plugin.sh
 ```
 
-Upload `dist/jot-library-0.1.2.zip` through **Plugins → Add New → Upload Plugin**, or copy `wordpress-plugin/jot-library` to `wp-content/plugins/jot-library`. Activate **Jot Library**, then save the site's permalink settings once if the host has unusual rewrite configuration. Activation registers and flushes the `/j/{CODE}` rewrite; it does not flush on ordinary requests.
+Upload `dist/jot-library-0.1.3.zip` through **Plugins → Add New → Upload Plugin**, or copy `wordpress-plugin/jot-library` to `wp-content/plugins/jot-library`. Activate **Jot Library**, then save the site's permalink settings once if the host has unusual rewrite configuration. Activation registers and flushes the `/j/{CODE}` rewrite; it does not flush on ordinary requests.
 
 Activation grants the custom entry capabilities to the Administrator and Editor roles. Deactivation preserves every entry, topic, option, and capability. Uninstall also keeps the library by default. To opt into permanent cleanup, enable **Jot Library → Settings → Permanently delete…** before uninstalling.
 
@@ -41,7 +41,7 @@ Imported four-character `S`/`M`/`L` codes remain unchanged. Both formats are cas
 
 ## Code and glyph
 
-The visible code is the sole lookup key. It stays selectable, copyable, legible in a monospace stack, and appears beside the full short URL.
+The visible code is the sole lookup key. In the public library it is a keyboard-accessible button that copies the complete short URL and provides brief status feedback. On individual entry pages it remains selectable beside the full short URL.
 
 The adjacent SVG is decorative. PHP derives its fixed coordinates, rotation, and line path from SHA-256 of the complete uppercase code. It is generated locally, stores no image or blob, calls no service, and has `aria-hidden="true"`. The WordPress glyph deliberately uses a new geometric grammar; preserving legacy codes and redirects is mandatory, preserving the old three-cell drawing is not.
 
