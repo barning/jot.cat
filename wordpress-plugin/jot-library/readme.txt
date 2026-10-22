@@ -3,7 +3,7 @@ Contributors: barning
 Tags: bookmarks, library, links, block
 Requires at least: 7.0
 Requires PHP: 8.0
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,7 +21,7 @@ See README.md for installation, security, privacy, testing, migration, and cutov
 
 1. Upload and activate the plugin.
 2. Create a page and insert the Jot Library block.
-3. Use Jot Library → Save URL to curate entries.
+3. Use Jot Library → Add library entry to curate entries.
 4. Publish individual entries when they are ready for public display and `/j/{CODE}` redirects.
 
 == Frequently Asked Questions ==
@@ -35,6 +35,11 @@ No. Deactivation preserves all data. Uninstall also preserves data unless an adm
 No. Hostname, DNS, proxy, and production routing changes are outside the plugin. Follow MIGRATION.md before cutover.
 
 == Changelog ==
+
+= 0.1.1 =
+
+* Consolidate entry creation into one admin flow.
+* Arrange public library cards to follow the original Jot identity-first layout while inheriting the active theme.
 
 = 0.1.0 =
 
