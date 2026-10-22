@@ -49,7 +49,7 @@ final class Library_Block {
 			<?php if ($show_search) : ?>
 				<form class="jot-library__filters" method="get" action="<?php echo esc_url($action_url); ?>">
 					<div class="jot-library__field">
-						<label for="<?php echo esc_attr($search_id); ?>"><?php esc_html_e('Search the library', 'jot-library'); ?></label>
+						<label for="<?php echo esc_attr($search_id); ?>"><?php esc_html_e('Search bookmarks', 'jot-library'); ?></label>
 						<input id="<?php echo esc_attr($search_id); ?>" name="jot_search" type="search" value="<?php echo esc_attr($search); ?>" placeholder="<?php echo esc_attr__('e.g. typography', 'jot-library'); ?>">
 					</div>
 					<div class="jot-library__field">
@@ -61,7 +61,7 @@ final class Library_Block {
 							<?php endforeach; ?>
 						</select>
 					</div>
-					<button type="submit"><?php esc_html_e('Filter library', 'jot-library'); ?></button>
+					<button type="submit"><?php esc_html_e('Filter bookmarks', 'jot-library'); ?></button>
 					<?php if ('' !== $search || '' !== $topic) : ?>
 						<a class="jot-library__clear" href="<?php echo esc_url($action_url); ?>"><?php esc_html_e('Clear filters', 'jot-library'); ?></a>
 					<?php endif; ?>
