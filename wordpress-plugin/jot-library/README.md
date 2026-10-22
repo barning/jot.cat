@@ -12,7 +12,7 @@ Build the installable archive from the repository root:
 bin/build-wordpress-plugin.sh
 ```
 
-Upload `dist/jot-library-0.1.1.zip` through **Plugins → Add New → Upload Plugin**, or copy `wordpress-plugin/jot-library` to `wp-content/plugins/jot-library`. Activate **Jot Library**, then save the site's permalink settings once if the host has unusual rewrite configuration. Activation registers and flushes the `/j/{CODE}` rewrite; it does not flush on ordinary requests.
+Upload `dist/jot-library-0.1.2.zip` through **Plugins → Add New → Upload Plugin**, or copy `wordpress-plugin/jot-library` to `wp-content/plugins/jot-library`. Activate **Jot Library**, then save the site's permalink settings once if the host has unusual rewrite configuration. Activation registers and flushes the `/j/{CODE}` rewrite; it does not flush on ordinary requests.
 
 Activation grants the custom entry capabilities to the Administrator and Editor roles. Deactivation preserves every entry, topic, option, and capability. Uninstall also keeps the library by default. To opt into permanent cleanup, enable **Jot Library → Settings → Permanently delete…** before uninstalling.
 
@@ -25,7 +25,7 @@ Activation grants the custom entry capabilities to the Administrator and Editor 
 
 The block is dynamic: WordPress queries only published `jot_entry` posts for the requested page. Search, topics, and pagination use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
 
-A card title and **Read notes** open the WordPress entry. **Visit original** and the visible code open the stored external resource through a 302 short link. The labels make the two destinations explicit.
+Each result leads with its title, source, and curated notes. The title opens the stored external resource directly; a compact reference footer keeps the decorative glyph and labeled code available, and the code opens the same resource through its stable 302 short link.
 
 ## Add and curate entries
 

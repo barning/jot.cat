@@ -3,7 +3,7 @@ Contributors: barning
 Tags: bookmarks, library, links, block
 Requires at least: 7.0
 Requires PHP: 8.0
-Stable tag: 0.1.1
+Stable tag: 0.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,6 +35,12 @@ No. Deactivation preserves all data. Uninstall also preserves data unless an adm
 No. Hostname, DNS, proxy, and production routing changes are outside the plugin. Follow MIGRATION.md before cutover.
 
 == Changelog ==
+
+= 0.1.2 =
+
+* Lead public library entries with their titles and move the glyph and short code into a compact reference footer.
+* Adapt search and topic controls to wide, medium, and narrow block containers.
+* Keep pagination links anchored to the library page.
 
 = 0.1.1 =
 

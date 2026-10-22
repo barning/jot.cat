@@ -28,10 +28,13 @@
 
 .jot-library__filters {
 	display: grid;
-	grid-template-columns: minmax(16rem, 2fr) minmax(10rem, 1fr) auto auto;
+	grid-template-areas:
+		"search search search"
+		"topic submit clear";
+	grid-template-columns: minmax(0, 1fr) auto auto;
 	align-items: end;
 	gap: 0.75rem;
-	margin-block-end: clamp(3rem, 8cqi, 5rem);
+	margin-block-end: 2rem;
 }
 
 .jot-library__field {
@@ -44,6 +47,14 @@
 	font-size: 0.8125rem;
 	font-weight: 600;
 	line-height: 1.4;
+}
+
+.jot-library__field--search {
+	grid-area: search;
+}
+
+.jot-library__field--topic {
+	grid-area: topic;
 }
 
 .jot-library__field input,
@@ -61,6 +72,7 @@
 }
 
 .jot-library__filters button {
+	grid-area: submit;
 	width: auto;
 	border-color: currentColor;
 	padding-inline: 1rem;
@@ -69,6 +81,7 @@
 }
 
 .jot-library__clear {
+	grid-area: clear;
 	display: inline-flex;
 	min-height: 2.75rem;
 	align-items: center;
@@ -76,7 +89,7 @@
 }
 
 .jot-library__count {
-	margin-block: 0 0.75rem;
+	margin-block: 0 0.5rem;
 	color: var(--jot-muted);
 	font-size: 0.8125rem;
 	font-weight: 400;
@@ -89,18 +102,19 @@
 }
 
 .jot-library__entry {
-	padding-block: clamp(3rem, 9cqi, 6rem);
+	padding-block: clamp(2rem, 5cqi, 3rem);
+}
+
+.jot-library__entry + .jot-library__entry {
 	border-block-start: 1px solid var(--jot-border);
 }
 
-.jot-library__entry:last-child {
-	border-block-end: 1px solid var(--jot-border);
-}
-
-.jot-library__identity {
+.jot-library__reference {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: clamp(1rem, 3cqi, 1.75rem);
+	gap: 0.35rem 0.6rem;
+	margin-block-start: 1.25rem;
 }
 
 .jot-library-glyph {
@@ -124,13 +138,22 @@
 	min-height: 2.75rem;
 	display: inline-flex;
 	align-items: center;
-	font-size: 1rem;
+	font-size: 0.875rem;
 	white-space: nowrap;
+}
+
+.jot-library__reference .jot-library-glyph {
+	width: 1.5rem;
+	height: 1.5rem;
+}
+
+.jot-library__reference-label {
+	color: var(--jot-muted);
+	font-size: 0.8125rem;
 }
 
 .jot-library__content {
 	min-width: 0;
-	margin-top: 1rem;
 }
 
 .jot-library__content h3 {
@@ -140,7 +163,7 @@
 }
 
 .jot-library__source {
-	margin-block: 0.75rem 0;
+	margin-block: 0.5rem 0;
 	color: var(--jot-muted);
 	font-size: 0.8125rem;
 	line-height: 1.4;
@@ -149,6 +172,7 @@
 
 .jot-library__description {
 	max-width: 60ch;
+	margin-block: 1rem 0;
 	line-height: 1.55;
 	text-wrap: pretty;
 }
@@ -169,18 +193,6 @@
 	font-size: 0.8125rem;
 	font-weight: 400;
 	line-height: 1.4;
-}
-
-.jot-library__actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.75rem 1.5rem;
-}
-
-.jot-library__actions a {
-	display: inline-flex;
-	min-height: 2.75rem;
-	align-items: center;
 }
 
 .jot-library__empty {
@@ -282,8 +294,20 @@
 	border: 0;
 }
 
-@container (width < 42rem) {
+@container (width >= 52rem) {
 	.jot-library__filters {
+		grid-template-areas: "search topic submit clear";
+		grid-template-columns: minmax(16rem, 2fr) minmax(10rem, 1fr) auto auto;
+	}
+}
+
+@container (width < 34rem) {
+	.jot-library__filters {
+		grid-template-areas:
+			"search"
+			"topic"
+			"submit"
+			"clear";
 		grid-template-columns: minmax(0, 1fr);
 	}
 
@@ -291,9 +315,8 @@
 		width: 100%;
 	}
 
-	.jot-library-glyph {
-		width: 3.25rem;
-		height: 3.25rem;
+	.jot-library__clear {
+		justify-content: center;
 	}
 }
 

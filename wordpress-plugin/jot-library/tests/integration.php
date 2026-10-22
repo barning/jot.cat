@@ -104,12 +104,26 @@ $tests['public REST responses exclude draft content and anonymous writes fail'] 
 	jot_check(in_array($write_request->get_status(), array(401, 403), true), 'anonymous write denied');
 };
 
-$tests['dynamic block exposes published content with clear destinations'] = static function () use (&$code): void {
+$tests['dynamic block exposes published content with clear destinations'] = static function () use ($service, &$code): void {
 	$html = do_blocks('<!-- wp:jot/library {"postsPerPage":12,"showSearch":true} /-->');
-	jot_check(str_contains($html, 'A useful article'), 'published title rendered');
-	jot_check(str_contains($html, $code), 'visible code rendered');
-	jot_check(str_contains($html, 'Visit original'), 'original destination labeled');
+	$title_position = strpos($html, 'A useful article');
+	$notes_position = strpos($html, 'Edited notes');
+	$reference_position = strpos($html, 'jot-library__reference');
+	jot_check(false !== $title_position, 'published title rendered');
+	jot_check(false !== $notes_position, 'published notes rendered');
+	jot_check(false !== $reference_position, 'reference footer rendered');
+	jot_check($title_position < $notes_position && $notes_position < $reference_position, 'entry uses title-first reading order');
+	jot_check(str_contains($html, 'Short link'), 'short-link purpose labeled');
+	jot_check(str_contains($html, 'class="jot-library__code" href="' . esc_url(home_url('/j/' . rawurlencode($code))) . '"'), 'visible code links through the short URL');
+	jot_check(str_contains($html, 'href="https://93.184.216.34/article?utm=kept#part"'), 'title links to the original resource');
 	jot_check(! str_contains($html, 'Draft link'), 'draft omitted');
+
+	$second = $service->create_or_find(array('url' => 'https://93.184.216.38/second', 'title' => 'Second published entry', 'status' => 'publish'));
+	jot_check(! is_wp_error($second), 'second published entry created');
+	$paged_html = do_blocks('<!-- wp:jot/library {"postsPerPage":1,"showSearch":true} /-->');
+	$pagination_match = array();
+	jot_check(1 === preg_match('/href="([^"]*jot_page=2[^"]*)"/', $paged_html, $pagination_match), 'pagination includes a second library page');
+	jot_check(! str_contains(html_entity_decode($pagination_match[1]), '93.184.216.'), 'pagination does not inherit an entry destination');
 };
 
 $tests['migration dry-run is read-only and imports are idempotent and nonpublic'] = static function (): void {
