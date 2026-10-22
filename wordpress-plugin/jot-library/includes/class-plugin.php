@@ -15,7 +15,7 @@ final class Plugin {
 		add_action('wp_enqueue_scripts', array(self::class, 'enqueue_entry_style'));
 
 		if (is_admin()) {
-			add_action('admin_menu', array(Admin::class, 'menus'));
+			add_action('admin_menu', array(Admin::class, 'menus'), 20);
 			add_action('admin_init', array(Settings::class, 'register'));
 			add_action('admin_enqueue_scripts', array(Admin::class, 'enqueue_assets'));
 			add_action('load-post-new.php', array(Admin::class, 'redirect_new_entry'));

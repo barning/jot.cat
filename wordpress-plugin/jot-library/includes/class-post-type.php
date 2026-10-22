@@ -15,6 +15,7 @@ final class Post_Type {
 				'labels' => array(
 					'name' => __('Jot Library', 'jot-library'),
 					'singular_name' => __('Library entry', 'jot-library'),
+					'add_new' => __('Add library entry', 'jot-library'),
 					'add_new_item' => __('Add library entry', 'jot-library'),
 					'edit_item' => __('Edit library entry', 'jot-library'),
 					'new_item' => __('New library entry', 'jot-library'),

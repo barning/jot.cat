@@ -8,10 +8,12 @@ final class Admin {
 	private static bool $saving_meta = false;
 
 	public static function menus(): void {
+		$parent = 'edit.php?post_type=' . Post_Type::TYPE;
+		remove_submenu_page($parent, 'post-new.php?post_type=' . Post_Type::TYPE);
 		add_submenu_page(
-			'edit.php?post_type=' . Post_Type::TYPE,
-			__('Save URL', 'jot-library'),
-			__('Save URL', 'jot-library'),
+			$parent,
+			__('Add library entry', 'jot-library'),
+			__('Add library entry', 'jot-library'),
 			'edit_jot_entries',
 			'jot-library-save',
 			array(self::class, 'save_page')
@@ -65,7 +67,7 @@ final class Admin {
 		}
 
 		echo '<div class="wrap jot-library-admin">';
-		echo '<h1>' . esc_html__('Save URL', 'jot-library') . '</h1>';
+		echo '<h1>' . esc_html__('Add library entry', 'jot-library') . '</h1>';
 		echo '<p class="jot-library-admin__intro">' . esc_html__('Add a public web address to your private curation queue. Publishing remains a separate choice.', 'jot-library') . '</p>';
 
 		if ($saved_id > 0 && current_user_can('edit_post', $saved_id)) {
@@ -95,7 +97,7 @@ final class Admin {
 		}
 		echo '<p class="description">' . esc_html__('Only published entries appear in the library, REST responses, search, feeds, and short-link redirects.', 'jot-library') . '</p></fieldset>';
 		echo '<p><label><input type="checkbox" name="jot_fetch_metadata" value="1"> ' . esc_html__('Try to fetch the page title and description when those fields are empty', 'jot-library') . '</label></p>';
-		submit_button(__('Save URL', 'jot-library'));
+		submit_button(__('Add library entry', 'jot-library'));
 		echo '</form>';
 
 		$bookmarklet = "javascript:location.href='" . esc_js(admin_url('edit.php?post_type=' . Post_Type::TYPE . '&page=jot-library-save&url=')) . "'+encodeURIComponent(location.href)";
