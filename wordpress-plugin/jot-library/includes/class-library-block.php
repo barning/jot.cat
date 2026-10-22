@@ -115,6 +115,7 @@ final class Library_Block {
 		$url = (string) get_post_meta($post_id, Entry_Service::META_URL, true);
 		$source = (string) get_post_meta($post_id, Entry_Service::META_SOURCE, true);
 		$description = wp_strip_all_tags((string) get_the_excerpt($post_id));
+		$notes = wp_strip_all_tags((string) get_post_field('post_content', $post_id));
 		$terms = get_the_terms($post_id, Post_Type::TAXONOMY);
 		$topics = '';
 		if (is_array($terms)) {
@@ -125,13 +126,15 @@ final class Library_Block {
 			$topics .= '</ul>';
 		}
 
+		$content_text = '' !== $notes ? $notes : $description;
+
 		return '<li class="jot-library__entry">'
 			. '<div class="jot-library__identity">' . Glyph::svg($code) . '<a class="jot-library__code" href="' . esc_url(home_url('/j/' . rawurlencode($code))) . '">' . esc_html($code) . '<span class="screen-reader-text"> ' . esc_html__('— open original resource', 'jot-library') . '</span></a></div>'
-			. '<div class="jot-library__content"><h3><a href="' . esc_url(get_permalink($post_id)) . '">' . esc_html(get_the_title($post_id)) . '</a></h3>'
+			. '<div class="jot-library__content"><h3><a href="' . esc_url($url) . '" rel="noopener noreferrer">' . esc_html(get_the_title($post_id)) . '</a></h3>'
 			. '<p class="jot-library__source">' . esc_html($source) . '</p>'
-			. ('' !== $description ? '<p class="jot-library__description">' . esc_html($description) . '</p>' : '')
+			. ('' !== $content_text ? '<p class="jot-library__description">' . esc_html($content_text) . '</p>' : '')
 			. $topics
-			. '<p class="jot-library__actions"><a href="' . esc_url(get_permalink($post_id)) . '">' . esc_html__('Read notes', 'jot-library') . '</a><a href="' . esc_url($url) . '" rel="noopener noreferrer">' . esc_html__('Visit original', 'jot-library') . '</a></p></div></li>';
+			. '</div></li>';
 	}
 
 	private static function pagination(WP_Query $query, string $search, string $topic): string {
