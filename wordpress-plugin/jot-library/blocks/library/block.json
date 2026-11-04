@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "jot/library",
+  "version": "0.1.3",
+  "title": "Jot Library",
+  "category": "widgets",
+  "icon": "book-alt",
+  "description": "Display the published Jot Library with search, topic filters, and pagination.",
+  "textdomain": "jot-library",
+  "attributes": {
+    "postsPerPage": {
+      "type": "number",
+      "default": 12
+    },
+    "showSearch": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "supports": {
+    "align": ["wide", "full"],
+    "html": false,
+    "spacing": {
+      "margin": true,
+      "padding": true
+    }
+  },
+  "editorScript": "file:./index.js",
+  "viewScript": "file:./view.js",
+  "style": "file:./style.css",
+  "render": "file:./render.php"
+}
