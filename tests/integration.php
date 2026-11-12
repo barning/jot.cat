@@ -423,9 +423,10 @@ $tests['deactivation preserves entries and reactivation succeeds'] = static func
 	require_once ABSPATH . 'wp-admin/includes/plugin.php';
 	$probe = wp_insert_post(array('post_type' => Post_Type::TYPE, 'post_status' => 'draft', 'post_title' => 'Persistence probe'), true);
 	jot_check(! is_wp_error($probe), 'probe created');
-	deactivate_plugins('jot-library/jot-library.php');
+	$plugin = plugin_basename(JOT_LIBRARY_FILE);
+	deactivate_plugins($plugin);
 	jot_check(null !== get_post((int) $probe), 'entry remains after deactivation');
-	$activated = activate_plugin('jot-library/jot-library.php');
+	$activated = activate_plugin($plugin);
 	jot_check(! is_wp_error($activated), 'plugin reactivates');
 };
 

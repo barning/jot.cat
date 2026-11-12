@@ -1,9 +1,4 @@
 .DS_Store
 
-# Local SQLite runtime data
-/var/*.sqlite
-/var/*.sqlite-shm
-/var/*.sqlite-wal
-
 # Reproducible release artifacts
 /dist/

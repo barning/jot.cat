@@ -24,14 +24,13 @@ jobs:
       - name: Verify tag and plugin version
         shell: bash
         run: |
-          version=$(sed -n 's/^ \* Version:[[:space:]]*//p' wordpress-plugin/jot-library/jot-library.php | head -n 1)
+          version=$(sed -n 's/^ \* Version:[[:space:]]*//p' jot-library.php | head -n 1)
           test "v${version}" = "${GITHUB_REF_NAME}"
 
       - name: Run dependency-free tests
         run: |
           php tests/run.php
-          php wordpress-plugin/jot-library/tests/run.php
-          find wordpress-plugin/jot-library -name '*.php' -print0 | xargs -0 -n1 php -l
+          find . \( -path './.git' -o -path './dist' \) -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Build plugin archive
         run: bin/build-wordpress-plugin.sh

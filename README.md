@@ -1,57 +1,141 @@
 # Jot Library for WordPress
 
-Jot Library is a WordPress plugin for curating useful links into a quiet public library. Every entry receives a short, stable reference that is easy to copy, share, or write beside notes in a paper notebook.
+Jot Library turns curated URLs into short references that are easy to write beside notes in a physical notebook. It adds a quiet public library to an existing WordPress site while keeping WordPress posts, statuses, roles, taxonomies, and the block editor as the source of truth.
 
-The plugin is the primary project in this repository. It uses WordPress posts, statuses, roles, taxonomies, and the block editor as its source of truth, with no Composer, npm, analytics, remote-font, or runtime-service dependency.
+The plugin requires WordPress 7.0 or newer and PHP 8.0 or newer. It has no Composer, npm, remote-font, analytics, or runtime service dependency.
 
-## What it includes
+## Install
 
-- An authenticated workflow for saving and curating URLs.
-- An authenticated iOS Shortcut API that saves shared pages as drafts and queues enrichment.
-- A responsive `jot/library` block with search, topic filters, pagination, and accessible copy controls.
-- A `jot/saved-links` block for date-based link digests inside posts and pages.
-- Stable `/j/{CODE}` redirects and locally generated decorative glyphs.
-- Administrator CSV checking, import, and export without overwriting existing entries.
-- Automatic background metadata and topic enrichment for imported links—without an AI service.
-- Draft/private safeguards, capability checks, nonces, conservative URL validation, and opt-in uninstall deletion.
-
-## Install a release
-
-Download `jot-library-VERSION.zip` from the [GitHub releases](https://github.com/barning/jot.cat/releases), then use **Plugins → Add New → Upload Plugin** in WordPress.
-
-To build the current checkout instead:
+Build the installable archive from the repository root:
 
 ```sh
 bin/build-wordpress-plugin.sh
 ```
 
-The archive is written to `dist/`. The plugin requires WordPress 7.0 or newer and PHP 8.0 or newer.
+Upload `dist/jot-library-0.5.0.zip` through **Plugins → Add New → Upload Plugin**. For development, this repository can also be mounted or copied to `wp-content/plugins/jot-library`. Activate **Jot Library**, then save the site's permalink settings once if the host has unusual rewrite configuration. Activation registers and flushes the `/j/{CODE}` rewrite; it does not flush on ordinary requests.
 
-## Use the plugin
+Activation grants the custom entry capabilities to the Administrator and Editor roles. Deactivation preserves every entry, topic, option, and capability. Uninstall also keeps the library by default. To opt into permanent cleanup, enable **Jot Library → Settings → Permanently delete…** before uninstalling.
 
-1. Activate **Jot Library**.
-2. Create a page and insert the **Jot Library** block.
-3. Add links through **Jot Library → Add library entry**.
-4. Move libraries between WordPress sites through **Jot Library → Import / Export**.
-5. Publish individual entries when they are ready for the public block and short-link redirects.
+## Create the public library
 
-Detailed installation, privacy, data-model, CSV, and development documentation lives in the [plugin README](wordpress-plugin/jot-library/README.md). The WordPress.org-compatible metadata is in [readme.txt](wordpress-plugin/jot-library/readme.txt).
+1. Create or edit a normal WordPress page, ideally with the `/library` slug.
+2. Insert the **Jot Library** block.
+3. Choose a page size and whether to show the search and topic controls.
+4. Publish the page.
 
-## Development
+The block is dynamic: WordPress queries only published `jot_entry` posts for the requested page. Search, topics, and pagination use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
+
+Each result leads with its title, source, and curated notes. The title opens the stored external resource directly; a compact reference footer keeps the decorative glyph and labeled code available, and the code button copies the complete stable short URL.
+
+## Add a saved-links digest to a post
+
+Insert the **Saved Links by Date** block in any post or page, then choose inclusive **From** and **To** dates in the block sidebar. Dates use the WordPress site timezone. The dynamic block displays every published entry saved in that range, newest first, with its linked title, source, saved date, and notes or description. Draft and private entries never appear.
+
+The date range remains stored as block attributes while the results are queried when the post is viewed. Newly published entries that belong to the selected range therefore appear automatically without editing the post again.
+
+## Add and curate entries
+
+Use **Jot Library → Save URL**. The form accepts a public HTTP or HTTPS URL, title, short description, topics, personal notes, reading status, and WordPress visibility. Saving is an authenticated, nonce-protected POST. The bookmarklet only prefills this form; the authenticated Shortcut API below can save a shared URL directly.
+
+Metadata fetching is optional. When selected, it uses `wp_safe_remote_get()` with a five-second timeout, three redirects, a 2 MiB response cap, and HTML-only parsing. A fetch failure never prevents saving: the source domain becomes the fallback title and the curator can edit it later. Scripts, embeds, and remote HTML are never rendered.
+
+When Topics is empty, the same opt-in can suggest up to five topics. Suggestions combine the page’s keyword and `article:tag` metadata with exact matches from topics already used in the library. They are saved as normal WordPress terms and remain editable. The plugin does not send content to an AI or suggestion service.
+
+## Save from iPhone or iPad
+
+The plugin registers `POST /wp-json/jot-library/v1/entries` for iOS Shortcuts and other trusted personal clients. Authenticate over HTTPS with a revocable WordPress Application Password. The authenticated user must have the `create_jot_entries` capability; anonymous requests receive `401` and authenticated users without that capability receive `403`.
+
+The JSON request requires `url` and may include `title`, `description`, `notes`, `topics`, `reading_status`, and `fetch_metadata`. Entries created through this endpoint are always drafts. `fetch_metadata` defaults to `true`, which adds the entry to the existing background queue for missing titles, descriptions, and topic suggestions.
+
+```json
+{
+  "url": "https://example.com/article",
+  "notes": "Saved from the Share Sheet.",
+  "topics": ["Independent web"],
+  "reading_status": "unread"
+}
+```
+
+The response uses `201 Created` for a new entry and `200 OK` for a duplicate. It includes `created`, `status`, `code`, `short_url`, `edit_url`, `enrichment_queued`, and a short `message` suitable for a Shortcut notification. Because the new entry is a draft, its stable short URL starts resolving only after the entry is reviewed and published.
+
+In Shortcuts, accept URLs from the Share Sheet and use **Get Contents of URL** to send JSON to `https://your-site.example/wp-json/jot-library/v1/entries`. Add HTTP Basic authentication with the WordPress username and its dedicated Application Password. Show the returned `message` in a notification. Do not put the Application Password in the request URL or share a configured Shortcut publicly.
+
+The conservative duplicate key lowercases the scheme and host, removes a default `:80` or `:443`, and treats an empty path as `/`. It preserves the path, query string, fragment, nondefault port, and the originally submitted URL. Thus tracking parameters and fragments remain significant. The original value remains the redirect target.
+
+New references contain five uppercase characters from `0123456789ABCDEFGHJKMNPQRSTVWXYZ`. Generation uses `random_int()`, retries collisions across published, draft, private, pending, future, and trashed entries, and never encodes article length. The assigned code and original URL are read-only on the edit screen and survive edits, taxonomy changes, and publication changes.
+
+Imported four-character `S`/`M`/`L` codes remain unchanged. Both formats are case-insensitive. Only published entries resolve through `/j/{CODE}`; an invalid, unknown, draft, or private code produces the site's 404 response. Successful redirects use HTTP 302 and no-cache headers. The external target comes only from the validated stored URL.
+
+## Code and glyph
+
+The visible code is the sole lookup key. In the public library it is a keyboard-accessible button that copies the complete short URL and provides brief status feedback. On individual entry pages it remains selectable beside the full short URL.
+
+The adjacent SVG is decorative. PHP derives its fixed coordinates, rotation, and line path from SHA-256 of the complete uppercase code. It is generated locally, stores no image or blob, calls no service, and has `aria-hidden="true"`. The WordPress glyph deliberately uses a new geometric grammar; preserving legacy codes and redirects is mandatory, preserving the old three-cell drawing is not.
+
+## Visibility and privacy
+
+WordPress statuses control visibility. Published entries may appear in the library block, individual pages, WordPress search and feeds, public REST post responses, and `/j/{CODE}`. Draft and private entries, including their notes, URLs, and codes, remain subject to WordPress post permissions and are never used by the public block or redirect lookup. Entry meta is not registered for public REST output.
+
+Publishing a URL makes the title, description, notes, source domain, topics, code, and external destination public. Optional metadata fetching sends a server-side request to the submitted host. Document those facts in the site's real privacy policy after legal review; this plugin makes no legal claims. It adds no cookies, trackers, analytics, external assets, or anonymous submission endpoint. The Shortcut endpoint accepts only authenticated requests and always creates nonpublic drafts.
+
+## CSV import and export
+
+Administrators can use **Jot Library → Import / Export** to download or restore a library. Exports contain `code`, `url`, `title`, `description`, `notes`, `topics`, `status`, `reading_status`, and `saved_at`. Topic names use `|` inside the CSV field so commas remain valid topic characters.
+
+Imports require only a `url` column. Leave `code` empty to generate a new reference; include it to preserve a Jot code. When supplied, `saved_at` uses UTC `YYYY-MM-DD HH:MM:SS`. **Check CSV** performs a dry run. **Import CSV** creates only rows that pass validation; it never overwrites an existing code or URL. Draft is the safe default, with private and preserve-status options available to administrators; pending and scheduled rows become drafts. Uploads are limited to `.csv`, 5 MiB, and 5,000 entries per operation.
+
+Every newly imported CSV entry is added to a WordPress cron queue. Small background batches request the original page through WordPress's safe HTTP client, fill missing titles and descriptions from Open Graph or standard HTML metadata, and combine page keywords or article tags with existing library-topic matches. Values supplied in the CSV remain authoritative. On sites with WP-Cron disabled, run `wp cron event run jot_library_enrich_imported_entries` until the queue is empty.
+
+## Security model
+
+- Administrators and Editors receive dedicated, mapped custom-post-type capabilities.
+- Save and edit actions require both a capability check and WordPress nonce.
+- Shortcut API writes require WordPress authentication, the custom create capability, validated JSON arguments, and always produce drafts.
+- User input is read by explicit key, unslashed, validated or sanitized, and escaped for its output context.
+- URL storage rejects credentials, non-HTTP schemes, unresolved names, localhost names, and private or reserved IP results.
+- Metadata requests use WordPress's safe HTTP client with bounded time, redirects, and body size.
+- Public redirects revalidate the syntax of the stored target and never use raw request input.
+- Rewrite rules flush on activation and deactivation, never per request.
+- Uninstall deletion is opt-in and guarded by WordPress's uninstall context.
+
+The plugin uses posts and post meta rather than a custom table. A short-lived atomic option serializes entry creation; code and normalized-URL queries cover all statuses. This keeps the implementation WordPress-native while reducing concurrent duplicate races. CSV transfer actions require administrator access and nonce-protected POST requests.
+
+## Legacy migration
+
+Read [MIGRATION.md](MIGRATION.md) before working with real data. The safe sequence is backup, standalone JSON export, WP-CLI dry run, report review, nonpublic import, curation, publication, redirect verification, and only then traffic cutover.
+
+The exporter needs PDO SQLite only where the old database is available:
+
+```sh
+php bin/export-legacy-jot.php --database=/secure/path/jot.sqlite --output=/secure/path/jot-export.json
+```
+
+The WordPress server does not need SQLite. Copy the JSON export to a protected location and run:
+
+```sh
+wp jot-library import /secure/path/jot-export.json --dry-run
+wp jot-library import /secure/path/jot-export.json --status=draft
+```
+
+The importer preserves codes and timestamps, defaults to draft, reports collisions, never overwrites an entry, and skips an identical code/URL pair on repeat runs.
+
+## Development and verification
+
+Run the dependency-free checks from the repository root:
 
 ```sh
 php tests/run.php
-php wordpress-plugin/jot-library/tests/run.php
-find wordpress-plugin/jot-library -name '*.php' -print0 | xargs -0 -n1 php -l
-bin/build-wordpress-plugin.sh
+find . \( -path './.git' -o -path './dist' \) -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
 ```
 
-The disposable-WordPress integration suite is at `wordpress-plugin/jot-library/tests/integration.php`. Tagged versions matching the plugin header (for example `v0.5.0`) are tested, packaged, and attached to a GitHub release by the repository workflow.
+Run the WordPress integration suite in a disposable WordPress 7.0+ installation after activating the plugin:
 
-## Legacy standalone service
+```sh
+wp eval-file wp-content/plugins/jot-library/tests/integration.php
+```
 
-The original standalone PHP/SQLite implementation remains in `public/`, `src/`, and the root `tests/` for compatibility with existing four-character links. It is maintained as a migration source, not as the repository’s primary distributable. Read [MIGRATION.md](wordpress-plugin/jot-library/MIGRATION.md) before changing traffic, DNS, or legacy redirects.
+The integration suite covers registration, capabilities, generation and deduplication, immutability, Shortcut authentication and responses, public versus nonpublic resolution, anonymous REST restrictions, dynamic rendering, migration dry runs and idempotency, and glyph stability. The distributable ZIP excludes `tests/` and migration fixtures.
 
-## License
+## Scope
 
-Jot Library is licensed under GPL-2.0-or-later. See [LICENSE](LICENSE).
+Jot Library is a link library and notebook-reference tool. It does not archive article bodies, generate topics with AI, recognize handwriting or glyphs, replace the WordPress theme, provide social accounts, accept anonymous submissions, or add a separate SPA or backend.
