@@ -1,61 +1,57 @@
-# Jot
+# Jot Library for WordPress
 
-This repository contains two deliberately separate implementations:
+Jot Library is a WordPress plugin for curating useful links into a quiet public library. Every entry receives a short, stable reference that is easy to copy, share, or write beside notes in a paper notebook.
 
-- The original standalone PHP service in `public/`, `src/`, and `bin/`. It remains the current compatibility path for existing four-character links.
-- [Jot Library for WordPress](wordpress-plugin/jot-library/README.md), an installable plugin that adds a curated public library, five-character references, an authenticated save flow, and safe legacy import tooling.
+The plugin is the primary project in this repository. It uses WordPress posts, statuses, roles, taxonomies, and the block editor as its source of truth, with no Composer, npm, analytics, remote-font, or runtime-service dependency.
 
-The WordPress plugin is additive. Installing it does not move traffic, change DNS, read the standalone SQLite database, or retire the old service. Follow the plugin's [migration and cutover guide](wordpress-plugin/jot-library/MIGRATION.md) before changing either hostname.
+## What it includes
 
-## Standalone service
+- An authenticated workflow for saving and curating URLs.
+- An authenticated iOS Shortcut API that saves shared pages as drafts and queues enrichment.
+- A responsive `jot/library` block with search, topic filters, pagination, and accessible copy controls.
+- A `jot/saved-links` block for date-based link digests inside posts and pages.
+- Stable `/j/{CODE}` redirects and locally generated decorative glyphs.
+- Administrator CSV checking, import, and export without overwriting existing entries.
+- Automatic background metadata and topic enrichment for imported links—without an AI service.
+- Draft/private safeguards, capability checks, nonces, conservative URL validation, and opt-in uninstall deletion.
 
-Jot turns an article URL into a four-character reference for a paper notebook. Paste a URL into the homepage form, use the “Jot this article” bookmarklet, add the [Jot shortcut for iPhone and iPad](https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b), or keep using the original direct-path syntax:
+## Install a release
 
-```text
-https://your-jot.example/https://example.com/article  →  M7KD
-https://your-jot.example/M7KD                        →  302 redirect
-```
+Download `jot-library-VERSION.zip` from the [GitHub releases](https://github.com/barning/jot.cat/releases), then use **Plugins → Add New → Upload Plugin** in WordPress.
 
-It requires PHP 8 with PDO SQLite, cURL, DOM, and mbstring. There are no package-manager dependencies; the small JavaScript enhancement is optional and the form works without it.
-
-## Local setup
+To build the current checkout instead:
 
 ```sh
-php bin/init-db.php
-JOT_BASE_URL=http://127.0.0.1:8080 php -S 127.0.0.1:8080 -t public tests/router.php
+bin/build-wordpress-plugin.sh
 ```
 
-Run the dependency-free tests with:
+The archive is written to `dist/`. The plugin requires WordPress 7.0 or newer and PHP 8.0 or newer.
+
+## Use the plugin
+
+1. Activate **Jot Library**.
+2. Create a page and insert the **Jot Library** block.
+3. Add links through **Jot Library → Add library entry**.
+4. Move libraries between WordPress sites through **Jot Library → Import / Export**.
+5. Publish individual entries when they are ready for the public block and short-link redirects.
+
+Detailed installation, privacy, data-model, CSV, and development documentation lives in the [plugin README](wordpress-plugin/jot-library/README.md). The WordPress.org-compatible metadata is in [readme.txt](wordpress-plugin/jot-library/readme.txt).
+
+## Development
 
 ```sh
 php tests/run.php
+php wordpress-plugin/jot-library/tests/run.php
+find wordpress-plugin/jot-library -name '*.php' -print0 | xargs -0 -n1 php -l
+bin/build-wordpress-plugin.sh
 ```
 
-The production Apache document root must point to `public/`. Set `JOT_DB_PATH` to a writable SQLite path outside that directory and expose `JOT_BASE_URL` to PHP as the public origin. `JOT_BASE_URL` is required and must be an absolute root-level HTTP or HTTPS URL such as `https://your-jot.example`; paths, credentials, query strings, and fragments are rejected. Jot uses this value for public result links, workflow examples, the bookmarklet, canonical URLs, social-preview metadata, and its fetcher identity. Browser-runtime assets, navigation, and forms remain origin-relative so local and proxy previews continue to work under the site’s same-origin security policy. Initialize the database once with `php bin/init-db.php "$JOT_DB_PATH"`.
+The disposable-WordPress integration suite is at `wordpress-plugin/jot-library/tests/integration.php`. Tagged versions matching the plugin header (for example `v0.5.0`) are tested, packaged, and attached to a GitHub release by the repository workflow.
 
-The decorative three-cell mark is derived from the complete four-character ID with SHA-256. It is never stored and never participates in copying or lookup; the written code remains the reference.
+## Legacy standalone service
 
-Copy the privacy variables from `.env.example`, replace every placeholder with accurate deployment information, and expose them to PHP. The privacy page deliberately returns 503 when any required value is missing or the contact email is invalid. Check a deployment before releasing it with:
+The original standalone PHP/SQLite implementation remains in `public/`, `src/`, and the root `tests/` for compatibility with existing four-character links. It is maintained as a migration source, not as the repository’s primary distributable. Read [MIGRATION.md](wordpress-plugin/jot-library/MIGRATION.md) before changing traffic, DNS, or legacy redirects.
 
-```sh
-php bin/check-config.php
-```
+## License
 
-The fetcher only connects to public HTTP/HTTPS addresses. Localhost and private-network URLs are intentionally rejected, including after redirects.
-
-## Pageview logs
-
-Jot writes one structured pageview entry to PHP's configured error log for every application request:
-
-```text
-[Jot] pageview {"page":"/result","status":200,"method":"GET"}
-```
-
-The `page` value is limited to `/`, `/result`, `/privacy`, `/article`, or `/error/{status}`. Jot's pageview entries never contain the request URI, submitted article URL, generated code, IP address, referrer, or user agent. Static assets served directly by Apache are not counted. Apache may still write separate access logs containing raw request targets; configure their retention and contents at the hosting level.
-
-The error-log location depends on the PHP and Apache configuration. Once identified, view pageviews with:
-
-```sh
-grep '[Jot] pageview ' /path/to/php-error.log
-tail -f /path/to/php-error.log | grep --line-buffered '[Jot] pageview '
-```
+Jot Library is licensed under GPL-2.0-or-later. See [LICENSE](LICENSE).

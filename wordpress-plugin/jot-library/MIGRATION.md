@@ -53,13 +53,21 @@ Review titles, descriptions, notes, topics, and URLs in WordPress. Publish only 
 
 ## 5. Update capture tools
 
-The old bookmarklet and iOS Shortcut must stop writing through a GET request. Point them at the authenticated WordPress form:
+The old bookmarklet must stop writing through a GET request. Point it at the authenticated WordPress form:
 
 ```text
 https://niklasbarning.de/wp-admin/edit.php?post_type=jot_entry&page=jot-library-save&url={URL-ENCODED-PAGE-URL}
 ```
 
 That URL only prefills the form. The curator must be logged in and select **Save URL**, which submits an authorized nonce-protected POST. There is no public write endpoint.
+
+For a one-tap iOS Shortcut, send an authenticated JSON `POST` to:
+
+```text
+https://niklasbarning.de/wp-json/jot-library/v1/entries
+```
+
+Use a dedicated WordPress Application Password over HTTPS and send the shared page as the `url` field. The endpoint requires the custom create capability, always creates a draft, queues missing metadata and topic suggestions by default, and returns the assigned code plus short and edit URLs. It does not accept anonymous writes.
 
 ## 6. Verify before routing traffic
 

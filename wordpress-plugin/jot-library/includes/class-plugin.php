@@ -9,6 +9,9 @@ final class Plugin {
 		add_action('init', array(Post_Type::class, 'register'), 5);
 		add_action('init', array(Redirects::class, 'register'), 6);
 		add_action('init', array(Library_Block::class, 'register'), 10);
+		add_action('init', array(Saved_Links_Block::class, 'register'), 10);
+		Metadata_Enricher::register();
+		Shortcut_Controller::register();
 		add_filter('query_vars', array(Redirects::class, 'query_vars'));
 		add_action('template_redirect', array(Redirects::class, 'maybe_redirect'));
 		add_filter('the_content', array(Library_Block::class, 'append_entry_details'));
@@ -20,6 +23,8 @@ final class Plugin {
 			add_action('admin_enqueue_scripts', array(Admin::class, 'enqueue_assets'));
 			add_action('load-post-new.php', array(Admin::class, 'redirect_new_entry'));
 			add_action('admin_post_jot_library_save_url', array(Admin::class, 'handle_save'));
+			add_action('admin_post_jot_library_import_csv', array(Admin::class, 'handle_import_csv'));
+			add_action('admin_post_jot_library_export_csv', array(Admin::class, 'handle_export_csv'));
 			add_action('add_meta_boxes_' . Post_Type::TYPE, array(Admin::class, 'meta_boxes'));
 			add_action('save_post_' . Post_Type::TYPE, array(Admin::class, 'save_meta'));
 			add_filter('manage_' . Post_Type::TYPE . '_posts_columns', array(Admin::class, 'columns'));
@@ -39,6 +44,7 @@ final class Plugin {
 	}
 
 	public static function deactivate(): void {
+		Metadata_Enricher::clear_schedule();
 		flush_rewrite_rules();
 	}
 

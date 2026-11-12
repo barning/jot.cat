@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace JotLibrary;
 
+use Throwable;
+
 final class Admin {
 	private static bool $saving_meta = false;
 
@@ -17,6 +19,14 @@ final class Admin {
 			'edit_jot_entries',
 			'jot-library-save',
 			array(self::class, 'save_page')
+		);
+		add_submenu_page(
+			$parent,
+			__('Import and export Jot Library entries', 'jot-library'),
+			__('Import / Export', 'jot-library'),
+			'manage_options',
+			'jot-library-transfer',
+			array(self::class, 'transfer_page')
 		);
 		add_submenu_page(
 			'edit.php?post_type=' . Post_Type::TYPE,
@@ -53,6 +63,7 @@ final class Admin {
 		$prefill = isset($_GET['url']) ? esc_url_raw(wp_unslash((string) $_GET['url'])) : '';
 		$saved_id = isset($_GET['saved']) ? absint($_GET['saved']) : 0;
 		$created = isset($_GET['created']) && '1' === $_GET['created'];
+		$suggested = isset($_GET['suggested']) ? absint($_GET['suggested']) : 0;
 		$error_key = isset($_GET['jot_error']) ? sanitize_key(wp_unslash((string) $_GET['jot_error'])) : '';
 		$error = '';
 		$attempt = array();
@@ -74,6 +85,9 @@ final class Admin {
 			$code = (string) get_post_meta($saved_id, Entry_Service::META_CODE, true);
 			$message = $created ? __('Entry saved.', 'jot-library') : __('This URL was already in the library.', 'jot-library');
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message) . ' ';
+			if ($suggested > 0) {
+				echo esc_html(sprintf(_n('%d topic was suggested.', '%d topics were suggested.', $suggested, 'jot-library'), $suggested)) . ' ';
+			}
 			echo '<strong class="jot-library-admin__code">' . esc_html($code) . '</strong> · ';
 			echo '<a href="' . esc_url(get_edit_post_link($saved_id)) . '">' . esc_html__('Edit entry', 'jot-library') . '</a></p></div>';
 		}
@@ -96,7 +110,8 @@ final class Admin {
 			echo '<label><input type="radio" name="jot_status" value="' . esc_attr($value) . '" ' . checked((string) ($attempt['status'] ?? 'draft'), $value, false) . '> ' . esc_html($label) . '</label> ';
 		}
 		echo '<p class="description">' . esc_html__('Only published entries appear in the library, REST responses, search, feeds, and short-link redirects.', 'jot-library') . '</p></fieldset>';
-		echo '<p><label><input type="checkbox" name="jot_fetch_metadata" value="1"> ' . esc_html__('Try to fetch the page title and description when those fields are empty', 'jot-library') . '</label></p>';
+		echo '<p><label><input type="checkbox" name="jot_fetch_metadata" value="1"> ' . esc_html__('Fetch missing page details and suggest topics when Topics is empty', 'jot-library') . '</label></p>';
+		echo '<p class="description">' . esc_html__('Topic suggestions come from the page’s keyword metadata and matches with topics already in this library. No AI or external suggestion service is used.', 'jot-library') . '</p>';
 		submit_button(__('Add library entry', 'jot-library'));
 		echo '</form>';
 
@@ -104,7 +119,55 @@ final class Admin {
 		echo '<hr><h2>' . esc_html__('Save from your browser', 'jot-library') . '</h2>';
 		echo '<p>' . esc_html__('Drag this link to your bookmarks bar. It opens this authenticated form with the current page URL filled in; saving still requires the form submission and nonce.', 'jot-library') . '</p>';
 		echo '<p><a class="button" href="' . esc_attr($bookmarklet) . '">' . esc_html__('Jot this page', 'jot-library') . '</a></p>';
+		echo '<h2>' . esc_html__('Save from iPhone or iPad', 'jot-library') . '</h2>';
+		echo '<p>' . esc_html__('An iOS Shortcut can send the shared page to the authenticated Jot Library API. Create a dedicated WordPress Application Password in your profile, then send a JSON POST with a url field to:', 'jot-library') . '</p>';
+		echo '<p><code>' . esc_html(rest_url('jot-library/v1/entries')) . '</code></p>';
+		echo '<p>' . esc_html__('Shortcut entries are always saved as drafts. Missing page metadata and topic suggestions are added in the background by default.', 'jot-library') . '</p>';
 		echo '</div>';
+	}
+
+	public static function transfer_page(): void {
+		if (! current_user_can('manage_options')) {
+			wp_die(esc_html__('You are not allowed to import or export library entries.', 'jot-library'), '', array('response' => 403));
+		}
+
+		echo '<div class="wrap jot-library-admin jot-library-admin--transfer"><h1>' . esc_html__('Import and export', 'jot-library') . '</h1>';
+		$result_key = isset($_GET['jot_result']) ? sanitize_key(wp_unslash((string) $_GET['jot_result'])) : '';
+		if ('' !== $result_key) {
+			$result = get_transient('jot_library_transfer_' . get_current_user_id() . '_' . $result_key);
+			delete_transient('jot_library_transfer_' . get_current_user_id() . '_' . $result_key);
+			if (is_array($result)) {
+				$class = ! empty($result['error']) ? 'notice-error' : 'notice-success';
+				echo '<div class="notice ' . esc_attr($class) . ' is-dismissible"><p><strong>' . esc_html((string) ($result['summary'] ?? '')) . '</strong></p>';
+				if (! empty($result['messages']) && is_array($result['messages'])) {
+					echo '<ul class="jot-library-admin__messages">';
+					foreach ($result['messages'] as $message) {
+						echo '<li>' . esc_html((string) $message) . '</li>';
+					}
+					echo '</ul>';
+				}
+				echo '</div>';
+			}
+		}
+
+		echo '<div class="jot-library-admin__transfer-grid"><section><h2>' . esc_html__('Import CSV', 'jot-library') . '</h2>';
+		echo '<p>' . esc_html__('Check an exported Jot Library CSV before importing it. Existing entries are never overwritten.', 'jot-library') . '</p>';
+		echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" enctype="multipart/form-data">';
+		wp_nonce_field('jot_library_import_csv', 'jot_library_nonce');
+		echo '<input type="hidden" name="action" value="jot_library_import_csv">';
+		echo '<p><label for="jot_csv"><strong>' . esc_html__('CSV file', 'jot-library') . '</strong></label><br><input id="jot_csv" name="jot_csv" type="file" accept=".csv,text/csv" required></p>';
+		echo '<p><label for="jot_import_visibility"><strong>' . esc_html__('Imported visibility', 'jot-library') . '</strong></label><br><select id="jot_import_visibility" name="jot_import_visibility"><option value="draft">' . esc_html__('Draft (recommended)', 'jot-library') . '</option><option value="private">' . esc_html__('Private', 'jot-library') . '</option><option value="preserve">' . esc_html__('Preserve CSV visibility', 'jot-library') . '</option></select></p>';
+		echo '<p class="description">' . esc_html__('Only url is required. Leave code empty to generate one. Imported links are queued for safe background metadata fetching; explicit CSV values are preserved while missing titles, descriptions, and topic suggestions are added.', 'jot-library') . '</p>';
+		echo '<p class="submit"><button class="button" type="submit" name="jot_import_mode" value="check">' . esc_html__('Check CSV', 'jot-library') . '</button> ';
+		echo '<button class="button button-primary" type="submit" name="jot_import_mode" value="import">' . esc_html__('Import CSV', 'jot-library') . '</button></p>';
+		echo '</form></section>';
+
+		echo '<section><h2>' . esc_html__('Export CSV', 'jot-library') . '</h2><p>' . esc_html__('Download every published, draft, private, pending, and scheduled entry, including notes and topics.', 'jot-library') . '</p>';
+		echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+		wp_nonce_field('jot_library_export_csv', 'jot_library_nonce');
+		echo '<input type="hidden" name="action" value="jot_library_export_csv">';
+		submit_button(__('Download CSV', 'jot-library'), 'secondary', 'submit', false);
+		echo '</form></section></div></div>';
 	}
 
 	public static function handle_save(): void {
@@ -116,23 +179,29 @@ final class Admin {
 		$url = isset($_POST['jot_url']) ? (string) wp_unslash($_POST['jot_url']) : '';
 		$title = isset($_POST['jot_title']) ? sanitize_text_field(wp_unslash((string) $_POST['jot_title'])) : '';
 		$description = isset($_POST['jot_description']) ? sanitize_textarea_field(wp_unslash((string) $_POST['jot_description'])) : '';
-		if (! empty($_POST['jot_fetch_metadata']) && ('' === $title || '' === $description)) {
+		$notes = isset($_POST['jot_notes']) ? wp_kses_post(wp_unslash((string) $_POST['jot_notes'])) : '';
+		$tags = isset($_POST['jot_tags']) ? array_values(array_filter(array_map('trim', explode(',', sanitize_text_field(wp_unslash((string) $_POST['jot_tags'])))))) : array();
+		$suggested = 0;
+		if (! empty($_POST['jot_fetch_metadata']) && ('' === $title || '' === $description || array() === $tags)) {
 			$metadata = (new Metadata_Fetcher())->fetch($url);
 			$title = '' !== $title ? $title : $metadata['title'];
 			$description = '' !== $description ? $description : $metadata['description'];
+			if (array() === $tags) {
+				$tags = (new Topic_Suggester())->suggest($url, $title, $description, $notes, $metadata['topics']);
+				$suggested = count($tags);
+			}
 		}
 
 		$status = isset($_POST['jot_status']) ? sanitize_key(wp_unslash((string) $_POST['jot_status'])) : 'draft';
 		if ('publish' === $status && ! current_user_can('publish_jot_entries')) {
 			$status = 'draft';
 		}
-		$tags = isset($_POST['jot_tags']) ? array_map('trim', explode(',', sanitize_text_field(wp_unslash((string) $_POST['jot_tags'])))) : array();
 		$result = (new Entry_Service())->create_or_find(
 			array(
 				'url' => $url,
 				'title' => $title,
 				'description' => $description,
-				'notes' => isset($_POST['jot_notes']) ? wp_kses_post(wp_unslash((string) $_POST['jot_notes'])) : '',
+				'notes' => $notes,
 				'status' => $status,
 				'tags' => $tags,
 			)
@@ -149,8 +218,8 @@ final class Admin {
 						'url' => $url,
 						'title' => $title,
 						'description' => $description,
-						'tags' => isset($_POST['jot_tags']) ? sanitize_text_field(wp_unslash((string) $_POST['jot_tags'])) : '',
-						'notes' => isset($_POST['jot_notes']) ? wp_kses_post(wp_unslash((string) $_POST['jot_notes'])) : '',
+						'tags' => implode(', ', $tags),
+						'notes' => $notes,
 						'status' => $status,
 					),
 				),
@@ -160,7 +229,66 @@ final class Admin {
 			exit;
 		}
 
-		wp_safe_redirect(add_query_arg(array('saved' => $result['id'], 'created' => $result['created'] ? '1' : '0'), $target));
+		wp_safe_redirect(add_query_arg(array('saved' => $result['id'], 'created' => $result['created'] ? '1' : '0', 'suggested' => $result['created'] ? $suggested : 0), $target));
+		exit;
+	}
+
+	public static function handle_import_csv(): void {
+		if (! current_user_can('manage_options')) {
+			wp_die(esc_html__('You are not allowed to import library entries.', 'jot-library'), '', array('response' => 403));
+		}
+		check_admin_referer('jot_library_import_csv', 'jot_library_nonce');
+		$redirect = admin_url('edit.php?post_type=' . Post_Type::TYPE . '&page=jot-library-transfer');
+		$result = array('error' => true, 'summary' => __('The CSV could not be imported.', 'jot-library'), 'messages' => array());
+
+		try {
+			$file = $_FILES['jot_csv'] ?? null;
+			if (! is_array($file) || UPLOAD_ERR_OK !== (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE)) {
+				throw new \RuntimeException(__('Choose a CSV file to upload.', 'jot-library'));
+			}
+			if ((int) ($file['size'] ?? 0) > 5 * MB_IN_BYTES || 'csv' !== strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION))) {
+				throw new \RuntimeException(__('Use a .csv file no larger than 5 MiB.', 'jot-library'));
+			}
+			$mode = isset($_POST['jot_import_mode']) ? sanitize_key(wp_unslash((string) $_POST['jot_import_mode'])) : 'check';
+			$dry_run = 'import' !== $mode;
+			$visibility = isset($_POST['jot_import_visibility']) ? sanitize_key(wp_unslash((string) $_POST['jot_import_visibility'])) : 'draft';
+			$report = (new Csv_Transfer())->import_file((string) $file['tmp_name'], $dry_run, $visibility);
+			$result = array(
+				'error' => $report['conflicts'] > 0 || $report['invalid'] > 0,
+				'summary' => sprintf(
+					$dry_run ? __('Check complete — ready: %1$d; existing: %2$d; conflicts: %3$d; invalid: %4$d.', 'jot-library') : __('Import complete — created: %1$d; existing: %2$d; conflicts: %3$d; invalid: %4$d.', 'jot-library'),
+					$report['created'],
+					$report['skipped'],
+					$report['conflicts'],
+					$report['invalid']
+				),
+				'messages' => $report['messages'],
+			);
+		} catch (Throwable $error) {
+			$result['messages'][] = $error->getMessage();
+		}
+
+		$key = wp_generate_password(12, false, false);
+		set_transient('jot_library_transfer_' . get_current_user_id() . '_' . $key, $result, 5 * MINUTE_IN_SECONDS);
+		wp_safe_redirect(add_query_arg('jot_result', $key, $redirect));
+		exit;
+	}
+
+	public static function handle_export_csv(): void {
+		if (! current_user_can('manage_options')) {
+			wp_die(esc_html__('You are not allowed to export library entries.', 'jot-library'), '', array('response' => 403));
+		}
+		check_admin_referer('jot_library_export_csv', 'jot_library_nonce');
+		nocache_headers();
+		header('Content-Type: text/csv; charset=utf-8');
+		header('Content-Disposition: attachment; filename="jot-library-' . gmdate('Y-m-d') . '.csv"');
+		$stream = fopen('php://output', 'wb');
+		if (false === $stream) {
+			wp_die(esc_html__('The CSV export could not be opened.', 'jot-library'));
+		}
+		fwrite($stream, "\xEF\xBB\xBF");
+		(new Csv_Transfer())->export_to_stream($stream);
+		fclose($stream);
 		exit;
 	}
 

@@ -6,6 +6,8 @@ if (! defined('WP_UNINSTALL_PLUGIN')) {
 	exit;
 }
 
+wp_clear_scheduled_hook('jot_library_enrich_imported_entries');
+
 $settings = (array) get_option('jot_library_settings', array());
 if (empty($settings['delete_on_uninstall'])) {
 	return;
@@ -36,6 +38,7 @@ if (is_array($terms)) {
 
 delete_option('jot_library_settings');
 delete_option('jot_library_entry_creation_lock');
+delete_option('jot_library_metadata_enrichment_queue');
 
 foreach (array('administrator', 'editor') as $role_name) {
 	$role = get_role($role_name);

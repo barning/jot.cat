@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "jot/saved-links",
+  "version": "0.5.0",
+  "title": "Saved Links by Date",
+  "category": "widgets",
+  "icon": "calendar-alt",
+  "description": "Display published Jot Library links saved within an inclusive date range.",
+  "keywords": ["links", "bookmarks", "date range"],
+  "textdomain": "jot-library",
+  "attributes": {
+    "fromDate": {
+      "type": "string",
+      "default": ""
+    },
+    "toDate": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "align": ["wide", "full"],
+    "html": false,
+    "spacing": {
+      "margin": true,
+      "padding": true
+    }
+  },
+  "editorScript": "file:./index.js",
+  "style": "file:./style.css",
+  "render": "file:./render.php"
+}

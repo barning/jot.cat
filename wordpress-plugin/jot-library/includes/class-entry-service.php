@@ -100,10 +100,27 @@ final class Entry_Service {
 		return array('action' => 'create', 'message' => __('The entry can be imported.', 'jot-library'));
 	}
 
+	/** @return array{action:string,message:string,post_id?:int} */
+	public function inspect_new_url(string $url): array {
+		try {
+			$url = URL::validate_for_storage($url);
+			$normalized = URL::normalize($url);
+		} catch (InvalidArgumentException $error) {
+			return array('action' => 'invalid', 'message' => $error->getMessage());
+		}
+
+		$existing = $this->find_by_meta(self::META_NORMALIZED_URL, $normalized);
+		if ($existing instanceof WP_Post) {
+			return array('action' => 'skip', 'message' => __('The URL already exists.', 'jot-library'), 'post_id' => $existing->ID);
+		}
+
+		return array('action' => 'create', 'message' => __('The URL can be imported.', 'jot-library'));
+	}
+
 	/**
 	 * @return array{id:int,code:string,created:bool}|WP_Error
 	 */
-	public function import(string $code, string $url, string $saved_at, string $status = 'draft'): array|WP_Error {
+	public function import(string $code, string $url, string $saved_at, string $status = 'draft', array $data = array()): array|WP_Error {
 		$inspection = $this->inspect_import($code, $url);
 		if ('skip' === $inspection['action']) {
 			return array('id' => (int) $inspection['post_id'], 'code' => Code::normalize($code), 'created' => false);
@@ -118,11 +135,14 @@ final class Entry_Service {
 
 		$url = URL::validate_for_storage($url);
 		return $this->insert(
-			array(
-				'url' => $url,
-				'title' => URL::source($url),
-				'status' => in_array($status, array('draft', 'private'), true) ? $status : 'draft',
-				'saved_at' => $saved_at,
+			array_merge(
+				$data,
+				array(
+					'url' => $url,
+					'title' => (string) ($data['title'] ?? URL::source($url)),
+					'status' => in_array($status, array('publish', 'draft', 'private'), true) ? $status : 'draft',
+					'saved_at' => $saved_at,
+				)
 			),
 			$url,
 			URL::normalize($url),

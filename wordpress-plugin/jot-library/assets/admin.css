@@ -50,3 +50,23 @@
 	width: 3rem;
 	height: 3rem;
 }
+
+.jot-library-admin__transfer-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+	gap: 2rem;
+	max-width: 64rem;
+}
+
+.jot-library-admin__transfer-grid section {
+	padding: 1rem 1.25rem 1.25rem;
+	border: 1px solid #c3c4c7;
+	background: #fff;
+}
+
+.jot-library-admin__messages {
+	max-height: 18rem;
+	margin: 0 1rem 1rem 2rem;
+	overflow: auto;
+	list-style: disc;
+}
