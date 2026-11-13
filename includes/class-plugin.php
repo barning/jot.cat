@@ -31,9 +31,6 @@ final class Plugin {
 			add_action('manage_' . Post_Type::TYPE . '_posts_custom_column', array(Admin::class, 'column'), 10, 2);
 		}
 
-		if (defined('WP_CLI') && WP_CLI) {
-			\WP_CLI::add_command('jot-library import', Import_Command::class);
-		}
 	}
 
 	public static function activate(): void {

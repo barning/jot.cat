@@ -15,7 +15,7 @@ Jot Library adds a WordPress-native library entry type, authenticated browser an
 
 It keeps entries in posts, post meta, and a topic taxonomy. Draft and private entries stay out of the public block and short-link resolver. The plugin introduces no analytics, cookies, trackers, remote assets, anonymous write endpoint, or JavaScript application.
 
-See README.md for installation, security, privacy, testing, migration, and cutover details.
+See README.md for installation, security, privacy, and testing details.
 
 == Installation ==
 
@@ -31,10 +31,6 @@ See README.md for installation, security, privacy, testing, migration, and cutov
 = Does deactivation delete the library? =
 
 No. Deactivation preserves all data. Uninstall also preserves data unless an administrator explicitly enables permanent cleanup in Jot Library settings first.
-
-= Does this move jot.cat traffic? =
-
-No. Hostname, DNS, proxy, and production routing changes are outside the plugin. Follow MIGRATION.md before cutover.
 
 = Can an iOS Shortcut save a link directly? =
 

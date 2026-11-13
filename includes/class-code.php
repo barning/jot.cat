@@ -16,12 +16,8 @@ final class Code {
 		return 1 === preg_match('/^[' . self::ALPHABET . ']{5}$/', self::normalize($code));
 	}
 
-	public static function is_legacy(string $code): bool {
-		return 1 === preg_match('/^[SML][' . self::ALPHABET . ']{3}$/', self::normalize($code));
-	}
-
 	public static function is_valid(string $code): bool {
-		return self::is_new($code) || self::is_legacy($code);
+		return self::is_new($code);
 	}
 
 	/**

@@ -64,13 +64,13 @@ The conservative duplicate key lowercases the scheme and host, removes a default
 
 New references contain five uppercase characters from `0123456789ABCDEFGHJKMNPQRSTVWXYZ`. Generation uses `random_int()`, retries collisions across published, draft, private, pending, future, and trashed entries, and never encodes article length. The assigned code and original URL are read-only on the edit screen and survive edits, taxonomy changes, and publication changes.
 
-Imported four-character `S`/`M`/`L` codes remain unchanged. Both formats are case-insensitive. Only published entries resolve through `/j/{CODE}`; an invalid, unknown, draft, or private code produces the site's 404 response. Successful redirects use HTTP 302 and no-cache headers. The external target comes only from the validated stored URL.
+Codes are five characters and case-insensitive. Only published entries resolve through `/j/{CODE}`; an invalid, unknown, draft, or private code produces the site's 404 response. Successful redirects use HTTP 302 and no-cache headers. The external target comes only from the validated stored URL.
 
 ## Code and glyph
 
 The visible code is the sole lookup key. In the public library it is a keyboard-accessible button that copies the complete short URL and provides brief status feedback. On individual entry pages it remains selectable beside the full short URL.
 
-The adjacent SVG is decorative. PHP derives its fixed coordinates, rotation, and line path from SHA-256 of the complete uppercase code. It is generated locally, stores no image or blob, calls no service, and has `aria-hidden="true"`. The WordPress glyph deliberately uses a new geometric grammar; preserving legacy codes and redirects is mandatory, preserving the old three-cell drawing is not.
+The adjacent SVG is decorative. PHP derives its fixed coordinates, rotation, and line path from SHA-256 of the complete uppercase five-character code. It is generated locally, stores no image or blob, calls no service, and has `aria-hidden="true"`.
 
 ## Visibility and privacy
 
@@ -100,25 +100,6 @@ Every newly imported CSV entry is added to a WordPress cron queue. Small backgro
 
 The plugin uses posts and post meta rather than a custom table. A short-lived atomic option serializes entry creation; code and normalized-URL queries cover all statuses. This keeps the implementation WordPress-native while reducing concurrent duplicate races. CSV transfer actions require administrator access and nonce-protected POST requests.
 
-## Legacy migration
-
-Read [MIGRATION.md](MIGRATION.md) before working with real data. The safe sequence is backup, standalone JSON export, WP-CLI dry run, report review, nonpublic import, curation, publication, redirect verification, and only then traffic cutover.
-
-The exporter needs PDO SQLite only where the old database is available:
-
-```sh
-php bin/export-legacy-jot.php --database=/secure/path/jot.sqlite --output=/secure/path/jot-export.json
-```
-
-The WordPress server does not need SQLite. Copy the JSON export to a protected location and run:
-
-```sh
-wp jot-library import /secure/path/jot-export.json --dry-run
-wp jot-library import /secure/path/jot-export.json --status=draft
-```
-
-The importer preserves codes and timestamps, defaults to draft, reports collisions, never overwrites an entry, and skips an identical code/URL pair on repeat runs.
-
 ## Development and verification
 
 Run the dependency-free checks from the repository root:
@@ -134,7 +115,7 @@ Run the WordPress integration suite in a disposable WordPress 7.0+ installation 
 wp eval-file wp-content/plugins/jot-library/tests/integration.php
 ```
 
-The integration suite covers registration, capabilities, generation and deduplication, immutability, Shortcut authentication and responses, public versus nonpublic resolution, anonymous REST restrictions, dynamic rendering, migration dry runs and idempotency, and glyph stability. The distributable ZIP excludes `tests/` and migration fixtures.
+The integration suite covers registration, capabilities, generation and deduplication, immutability, Shortcut authentication and responses, public versus nonpublic resolution, anonymous REST restrictions, dynamic rendering, CSV transfers and enrichment, queue concurrency, and glyph stability. The distributable ZIP excludes `tests/`.
 
 ## Scope
 

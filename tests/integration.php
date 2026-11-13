@@ -4,7 +4,6 @@ use JotLibrary\Code;
 use JotLibrary\Csv_Transfer;
 use JotLibrary\Entry_Service;
 use JotLibrary\Glyph;
-use JotLibrary\Importer;
 use JotLibrary\Metadata_Fetcher;
 use JotLibrary\Metadata_Enricher;
 use JotLibrary\Post_Type;
@@ -437,36 +436,6 @@ $tests['CSV imports enrich missing metadata and topics without overwriting curat
 	$curated_topics = wp_get_object_terms($curated[0]->ID, Post_Type::TAXONOMY, array('fields' => 'names'));
 	sort($curated_topics);
 	jot_same(array('Design', 'Explicit', 'WordPress'), $curated_topics, 'curated and suggested topics combined');
-};
-
-$tests['migration dry-run is read-only and imports are idempotent and nonpublic'] = static function (): void {
-	$fixture = dirname(__DIR__) . '/tests/fixtures/legacy-export.json';
-	$importer = new Importer();
-	$invalid_fixture = '/tmp/jot-library-invalid-timestamp.json';
-	file_put_contents($invalid_fixture, wp_json_encode(array('version' => 1, 'entries' => array(array('code' => 'M8KD', 'url' => 'https://93.184.216.40/invalid-time', 'created_at' => 'last Tuesday')))));
-	$invalid = $importer->import_file($invalid_fixture, true, 'draft');
-	unlink($invalid_fixture);
-	jot_same(1, $invalid['invalid'], 'invalid timestamp reported');
-	jot_same(0, $invalid['created'], 'invalid timestamp not planned for import');
-	$before = wp_count_posts(Post_Type::TYPE)->draft;
-	$dry = $importer->import_file($fixture, true, 'draft');
-	jot_same(2, $dry['created'], 'dry-run planned rows');
-	jot_same($before, wp_count_posts(Post_Type::TYPE)->draft, 'dry-run wrote no posts');
-	$applied = $importer->import_file($fixture, false, 'draft');
-	jot_same(2, $applied['created'], 'legacy rows imported');
-	$again = $importer->import_file($fixture, false, 'draft');
-	jot_same(2, $again['skipped'], 'repeat import skipped rows');
-	foreach (array('M7KD', 'S4F7') as $legacy) {
-		$posts = get_posts(array('post_type' => Post_Type::TYPE, 'post_status' => 'any', 'meta_key' => Entry_Service::META_CODE, 'meta_value' => $legacy));
-		jot_same(1, count($posts), "{$legacy} imported once");
-		jot_same('draft', $posts[0]->post_status, "{$legacy} remains nonpublic");
-		jot_check(null === (new Entry_Service())->find_published_by_code($legacy), "{$legacy} does not redirect before publication");
-		if ('M7KD' === $legacy) {
-			jot_same('2024-06-01 10:30:00', get_post_meta($posts[0]->ID, Entry_Service::META_SAVED_AT, true), 'saved timestamp preserved');
-			wp_update_post(array('ID' => $posts[0]->ID, 'post_status' => 'publish'));
-			jot_check(null !== (new Entry_Service())->find_published_by_code('m7kd'), 'published legacy code resolves case-insensitively');
-		}
-	}
 };
 
 $tests['glyph output is deterministic and decorative'] = static function () use (&$code): void {

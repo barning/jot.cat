@@ -36,9 +36,7 @@ require_once JOT_LIBRARY_DIR . 'includes/class-library-block.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-saved-links-block.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-admin.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-settings.php';
-require_once JOT_LIBRARY_DIR . 'includes/class-importer.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-csv-transfer.php';
-require_once JOT_LIBRARY_DIR . 'includes/class-import-command.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-plugin.php';
 
 register_activation_hook(__FILE__, array('JotLibrary\\Plugin', 'activate'));

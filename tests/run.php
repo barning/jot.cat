@@ -36,10 +36,10 @@ $tests['five-character codes use the unambiguous alphabet'] = static function ()
 	check(Code::is_new($code), 'new code parses');
 	check(! Code::is_new('O1ILU'), 'ambiguous characters are rejected');
 };
-$tests['legacy and new code formats remain distinct and case-insensitive'] = static function (): void {
-	check(Code::is_legacy('m7kd'), 'legacy code parses case-insensitively');
-	check(Code::is_valid('7k3m9'), 'new code parses case-insensitively');
-	check(! Code::is_valid('M7KDXZ'), 'legacy prefix does not make a six-character code valid');
+$tests['codes are five characters and case-insensitive'] = static function (): void {
+	check(Code::is_valid('7k3m9'), 'code parses case-insensitively');
+	check(! Code::is_valid('M7KD'), 'four-character code is rejected');
+	check(! Code::is_valid('M7KDXZ'), 'six-character code is rejected');
 	check(! Code::is_valid('../M7KD'), 'paths are not codes');
 };
 $tests['glyphs are deterministic, local, and decorative'] = static function (): void {
@@ -48,7 +48,7 @@ $tests['glyphs are deterministic, local, and decorative'] = static function (): 
 	check(str_contains($svg, 'aria-hidden="true"'), 'glyph is hidden from assistive technology');
 	check(str_contains($svg, 'currentColor'), 'glyph uses controlled local presentation');
 	check(! str_contains($svg, 'http'), 'glyph has no remote dependency');
-	check($svg !== Glyph::svg('M7KD'), 'complete code changes the glyph');
+	check($svg !== Glyph::svg('012YZ'), 'complete code changes the glyph');
 };
 $tests['URL normalization is conservative'] = static function (): void {
 	same('https://example.com/path?q=One#Part', URL::normalize('HTTPS://EXAMPLE.COM:443/path?q=One#Part'), 'scheme, host, and default port normalize');

@@ -15,9 +15,11 @@ fi
 
 mkdir -p "$output_directory" "$staging_directory/jot-library"
 cp -R "$source_directory/assets" "$source_directory/blocks" "$source_directory/includes" "$staging_directory/jot-library/"
-cp "$source_directory/jot-library.php" "$source_directory/readme.txt" "$source_directory/README.md" "$source_directory/MIGRATION.md" "$source_directory/uninstall.php" "$source_directory/LICENSE" "$staging_directory/jot-library/"
+cp "$source_directory/jot-library.php" "$source_directory/readme.txt" "$source_directory/README.md" "$source_directory/uninstall.php" "$source_directory/LICENSE" "$staging_directory/jot-library/"
 find "$staging_directory" -type f -name '.DS_Store' -delete
 
+archive_path="$output_directory/jot-library-$version.zip"
+rm -f "$archive_path"
 cd "$staging_directory"
-zip -qr "$output_directory/jot-library-$version.zip" jot-library
-printf 'Built %s\n' "$output_directory/jot-library-$version.zip"
+zip -qr "$archive_path" jot-library
+printf 'Built %s\n' "$archive_path"
