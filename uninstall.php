@@ -39,6 +39,7 @@ if (is_array($terms)) {
 delete_option('jot_library_settings');
 delete_option('jot_library_entry_creation_lock');
 delete_option('jot_library_metadata_enrichment_queue');
+delete_option('jot_library_metadata_enrichment_queue_lock');
 
 foreach (array('administrator', 'editor') as $role_name) {
 	$role = get_role($role_name);

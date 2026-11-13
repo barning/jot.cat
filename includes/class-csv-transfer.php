@@ -123,6 +123,7 @@ final class Csv_Transfer {
 				if (! in_array($status, array('publish', 'draft', 'private'), true)) {
 					$status = 'draft';
 				}
+				$enrichment_queued = false;
 				if (! $dry_run) {
 					$data = array(
 							'title' => $this->restore_export_cell((string) ($row['title'] ?? '')),
@@ -149,10 +150,17 @@ final class Csv_Transfer {
 						continue;
 					}
 					$reference = (string) $created['code'];
-					Metadata_Enricher::enqueue((int) $created['id']);
+					$enrichment_queued = Metadata_Enricher::enqueue((int) $created['id']);
 				}
 				++$result['created'];
-				$this->message($result['messages'], $dry_run ? sprintf(__('Row %d (%s): ready to import.', 'jot-library'), $row_number, $reference) : sprintf(__('Row %d (%s): imported and queued for metadata enrichment.', 'jot-library'), $row_number, $reference));
+				if ($dry_run) {
+					$message = sprintf(__('Row %d (%s): ready to import.', 'jot-library'), $row_number, $reference);
+				} elseif ($enrichment_queued) {
+					$message = sprintf(__('Row %d (%s): imported and queued for metadata enrichment.', 'jot-library'), $row_number, $reference);
+				} else {
+					$message = sprintf(__('Row %d (%s): imported, but metadata enrichment could not be queued.', 'jot-library'), $row_number, $reference);
+				}
+				$this->message($result['messages'], $message);
 			}
 		} finally {
 			fclose($handle);

@@ -135,9 +135,8 @@ final class Shortcut_Controller extends WP_REST_Controller {
 		}
 
 		$queued = false;
-		if ($result['created'] && (bool) $request->get_param('fetch_metadata')) {
-			Metadata_Enricher::enqueue((int) $result['id']);
-			$queued = true;
+		if ((bool) $request->get_param('fetch_metadata')) {
+			$queued = Metadata_Enricher::enqueue((int) $result['id']);
 		}
 
 		$post = get_post((int) $result['id']);

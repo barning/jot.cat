@@ -173,7 +173,7 @@ $tests['Shortcut API authenticates, creates drafts, queues enrichment, and reuse
 	jot_check(false === $duplicate_data['created'], 'duplicate Shortcut response reports existing entry');
 	jot_same($data['id'], $duplicate_data['id'], 'duplicate Shortcut response reuses post ID');
 	jot_same($data['code'], $duplicate_data['code'], 'duplicate Shortcut response reuses code');
-	jot_check(false === $duplicate_data['enrichment_queued'], 'duplicate Shortcut request does not requeue enrichment');
+	jot_check(true === $duplicate_data['enrichment_queued'], 'duplicate Shortcut request reasserts enrichment idempotently');
 
 	$without_metadata = new WP_REST_Request('POST', '/jot-library/v1/entries');
 	$without_metadata->set_param('url', 'https://93.184.216.61/shortcut-no-metadata');
@@ -187,6 +187,61 @@ $tests['Shortcut API authenticates, creates drafts, queues enrichment, and reuse
 	$invalid_response = rest_do_request($invalid);
 	jot_same(400, $invalid_response->get_status(), 'unsafe Shortcut URL rejected');
 	wp_set_current_user(0);
+};
+
+$tests['metadata queue preserves overlapping enqueues and retries duplicates'] = static function () use ($service): void {
+	delete_option('jot_library_metadata_enrichment_queue');
+	delete_option('jot_library_metadata_enrichment_queue_lock');
+	wp_clear_scheduled_hook(Metadata_Enricher::HOOK);
+
+	$queued_ids = array();
+	for ($index = 0; $index < 7; $index++) {
+		$entry = $service->create_or_find(
+			array(
+				'url' => 'https://93.184.216.' . (70 + $index) . '/queue-' . $index,
+				'title' => 'Queue entry ' . $index,
+				'status' => 'draft',
+			)
+		);
+		jot_check(! is_wp_error($entry), 'queue fixture created');
+		$queued_ids[] = (int) $entry['id'];
+		jot_check(Metadata_Enricher::enqueue((int) $entry['id']), 'queue fixture enqueued');
+	}
+
+	jot_check(Metadata_Enricher::enqueue($queued_ids[0]), 'duplicate enqueue remains successful');
+	jot_same($queued_ids, get_option('jot_library_metadata_enrichment_queue'), 'duplicate enqueue does not duplicate or replace queued IDs');
+
+	$late = $service->create_or_find(
+		array(
+			'url' => 'https://93.184.216.80/queue-late',
+			'title' => 'Late queue entry',
+			'status' => 'draft',
+		)
+	);
+	jot_check(! is_wp_error($late), 'late queue fixture created');
+	$late_id = (int) $late['id'];
+	$late_enqueued = false;
+	$mock = static function () use (&$late_enqueued, $late_id): array {
+		if (! $late_enqueued) {
+			$late_enqueued = Metadata_Enricher::enqueue($late_id);
+		}
+		return array(
+			'headers' => array('content-type' => 'text/html; charset=UTF-8'),
+			'body' => '<html><head><title>Queue metadata</title></head></html>',
+			'response' => array('code' => 200, 'message' => 'OK'),
+			'cookies' => array(),
+			'filename' => null,
+		);
+	};
+	add_filter('pre_http_request', $mock);
+	Metadata_Enricher::run();
+	remove_filter('pre_http_request', $mock);
+
+	jot_check($late_enqueued, 'enqueue during worker processing succeeds');
+	jot_same(array($queued_ids[5], $queued_ids[6], $late_id), get_option('jot_library_metadata_enrichment_queue'), 'worker preserves IDs added after its batch removal');
+
+	delete_option('jot_library_metadata_enrichment_queue');
+	wp_clear_scheduled_hook(Metadata_Enricher::HOOK);
 };
 
 $tests['dynamic block exposes published content with clear destinations'] = static function () use ($service, &$code): void {
@@ -441,9 +496,13 @@ $tests['uninstall retains data by default and honors explicit deletion'] = stati
 	jot_check(null !== get_post((int) $probe), 'default uninstall keeps entries');
 
 	update_option('jot_library_settings', array('delete_on_uninstall' => true));
+	update_option('jot_library_metadata_enrichment_queue', array((int) $probe), false);
+	update_option('jot_library_metadata_enrichment_queue_lock', 'expired-lock|1', false);
 	require dirname(__DIR__) . '/uninstall.php';
 	jot_check(null === get_post((int) $probe), 'opt-in uninstall deletes entries');
 	jot_check(false === get_option('jot_library_settings'), 'opt-in uninstall deletes settings');
+	jot_check(false === get_option('jot_library_metadata_enrichment_queue'), 'opt-in uninstall deletes enrichment queue');
+	jot_check(false === get_option('jot_library_metadata_enrichment_queue_lock'), 'opt-in uninstall deletes enrichment queue lock');
 	JotLibrary\Plugin::activate();
 };
 
