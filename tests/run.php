@@ -2,561 +2,82 @@
 
 declare(strict_types=1);
 
-use Jot\Application;
-use Jot\Article\ArticleExtractor;
-use Jot\Article\LengthClassifier;
-use Jot\Exception\HttpException;
-use Jot\Fetch\CurlHttpClient;
-use Jot\Fetch\DnsResolver;
-use Jot\Fetch\FetchResult;
-use Jot\Fetch\HttpClient;
-use Jot\Id\IdGenerator;
-use Jot\Random\RandomSource;
-use Jot\Storage\ArticleRepository;
-use Jot\Url\UrlValidator;
-use Jot\Web\PageViewLogger;
-use Jot\Web\PrivacyPolicy;
-use Jot\Web\Glyph;
-use Jot\Web\PublicUrl;
-
-require dirname(__DIR__) . '/src/Autoload.php';
-
-final class TestFailure extends RuntimeException {}
-
-final class SequenceRandom implements RandomSource
-{
-    /** @param list<int> $values */
-    public function __construct(private array $values = []) {}
-
-    public function integer(int $min, int $max): int
-    {
-        $value = array_shift($this->values) ?? 0;
-        if ($value < $min || $value > $max) {
-            throw new RuntimeException("Test random value {$value} is out of range.");
-        }
-        return $value;
-    }
+function __(string $message, string $domain = 'default'): string {
+	return $message;
 }
 
-final class FakeHttpClient implements HttpClient
-{
-    public int $calls = 0;
+require dirname(__DIR__) . '/includes/class-code.php';
+require dirname(__DIR__) . '/includes/class-url.php';
+require dirname(__DIR__) . '/includes/class-glyph.php';
 
-    public function __construct(
-        private string $body = '<article>one two three</article>',
-        private ?HttpException $error = null,
-    ) {}
+use JotLibrary\Code;
+use JotLibrary\Glyph;
+use JotLibrary\URL;
 
-    public function get(string $url): FetchResult
-    {
-        $this->calls++;
-        if ($this->error !== null) {
-            throw $this->error;
-        }
-        return new FetchResult($url, $this->body, 'text/html');
-    }
+final class Test_Failure extends RuntimeException {}
+
+function check(bool $condition, string $message): void {
+	if (! $condition) {
+		throw new Test_Failure($message);
+	}
 }
 
-final class FakeDns implements DnsResolver
-{
-    /** @param list<string> $addresses */
-    public function __construct(private array $addresses) {}
-
-    public function resolve(string $hostname): array
-    {
-        return $this->addresses;
-    }
+function same(mixed $expected, mixed $actual, string $message): void {
+	check($expected === $actual, $message . ': expected ' . var_export($expected, true) . ', got ' . var_export($actual, true));
 }
 
-/** @param mixed $actual @param mixed $expected */
-function assertSameValue(mixed $expected, mixed $actual, string $message = ''): void
-{
-    if ($expected !== $actual) {
-        throw new TestFailure(($message !== '' ? $message . ': ' : '') . 'expected ' . var_export($expected, true) . ', got ' . var_export($actual, true));
-    }
-}
-
-function assertTrue(bool $condition, string $message = 'condition is false'): void
-{
-    if (!$condition) {
-        throw new TestFailure($message);
-    }
-}
-
-function assertContains(string $needle, string $haystack): void
-{
-    assertTrue(str_contains($haystack, $needle), "expected output to contain {$needle}");
-}
-
-function assertNotContains(string $needle, string $haystack): void
-{
-    assertTrue(!str_contains($haystack, $needle), "expected output not to contain {$needle}");
-}
-
-function assertThrows(callable $callback, string $class, ?int $status = null): void
-{
-    try {
-        $callback();
-    } catch (Throwable $error) {
-        assertTrue($error instanceof $class, 'unexpected exception ' . $error::class);
-        if ($status !== null) {
-            assertSameValue($status, $error->status);
-        }
-        return;
-    }
-    throw new TestFailure("expected {$class} to be thrown");
-}
-
-function repository(): ArticleRepository
-{
-    $pdo = new PDO('sqlite::memory:');
-    $pdo->exec(<<<'SQL'
-CREATE TABLE articles (
-  id TEXT PRIMARY KEY,
-  url TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-)
-SQL);
-    return new ArticleRepository($pdo);
-}
-
-function application(
-    ArticleRepository $repository,
-    FakeHttpClient $http,
-    ?SequenceRandom $random = null,
-    ?PrivacyPolicy $privacy = null,
-    string $baseUrl = 'https://jot.cat',
-): Application {
-    return new Application(
-        $repository,
-        new UrlValidator(),
-        $http,
-        new ArticleExtractor(),
-        new LengthClassifier(),
-        new IdGenerator($random ?? new SequenceRandom()),
-        PublicUrl::fromString($baseUrl),
-        $privacy ?? privacyPolicy(),
-    );
-}
-
-function privacyPolicy(bool $complete = true): PrivacyPolicy
-{
-    $values = [
-        'JOT_PRIVACY_CONTROLLER_NAME' => 'Example Operator',
-        'JOT_PRIVACY_CONTROLLER_ADDRESS' => 'Example Street 1, Berlin',
-        'JOT_PRIVACY_CONTACT_EMAIL' => 'privacy@example.com',
-        'JOT_PRIVACY_LEGAL_BASIS' => 'Performance of the requested service and legitimate interests.',
-        'JOT_PRIVACY_PROCESSOR' => 'Example Hosting GmbH hosts the service in Germany.',
-        'JOT_PRIVACY_THIRD_COUNTRY_TRANSFERS' => 'No transfer to a third country takes place.',
-        'JOT_PRIVACY_URL_RETENTION' => 'until the code is deleted',
-        'JOT_PRIVACY_LOG_RETENTION' => '14 days',
-        'JOT_PRIVACY_SUPERVISORY_AUTHORITY' => 'Berlin Commissioner for Data Protection',
-        'JOT_PRIVACY_UPDATED_AT' => '2 August 2026',
-    ];
-    if (!$complete) {
-        unset($values['JOT_PRIVACY_CONTROLLER_NAME']);
-    }
-
-    $original = [];
-    foreach (array_keys($values + ['JOT_PRIVACY_CONTROLLER_NAME' => '']) as $key) {
-        $original[$key] = getenv($key);
-        if (array_key_exists($key, $values)) {
-            putenv($key . '=' . $values[$key]);
-        } else {
-            putenv($key);
-        }
-    }
-
-    $policy = PrivacyPolicy::fromEnvironment();
-    foreach ($original as $key => $value) {
-        putenv($value === false ? $key : $key . '=' . $value);
-    }
-    return $policy;
-}
-
-$tests = [];
-
-$tests['public URL configuration normalizes a root origin and rejects ambiguous values'] = static function (): void {
-    $url = PublicUrl::fromString('HTTPS://JOT.EXAMPLE:8443/');
-    assertSameValue('https://jot.example:8443', $url->origin());
-    assertSameValue('jot.example:8443', $url->displayHost());
-    assertSameValue('https://jot.example:8443/M7KD', $url->absolute('/M7KD'));
-    assertContains('encodeURIComponent(location.href)', $url->bookmarklet());
-
-    foreach ([
-        'jot.example',
-        'ftp://jot.example',
-        'https://user@jot.example',
-        'https://jot.example/subpath',
-        'https://jot.example/?mode=one',
-        'https://jot.example/#top',
-        'https://bad host/',
-    ] as $invalid) {
-        assertThrows(fn () => PublicUrl::fromString($invalid), InvalidArgumentException::class);
-    }
+$tests = array();
+$tests['five-character codes use the unambiguous alphabet'] = static function (): void {
+	$values = array(0, 1, 2, 30, 31);
+	$code = Code::generate(static function () use (&$values): int {
+		return array_shift($values);
+	});
+	same('012YZ', $code, 'deterministic code');
+	check(Code::is_new($code), 'new code parses');
+	check(! Code::is_new('O1ILU'), 'ambiguous characters are rejected');
 };
-
-$tests['public URL configuration is required in the environment'] = static function (): void {
-    $original = getenv('JOT_BASE_URL');
-
-    try {
-        putenv('JOT_BASE_URL');
-        assertThrows(fn () => PublicUrl::fromEnvironment(), InvalidArgumentException::class);
-
-        putenv('JOT_BASE_URL=https://configured.example');
-        assertSameValue('https://configured.example', PublicUrl::fromEnvironment()->origin());
-    } finally {
-        putenv($original === false ? 'JOT_BASE_URL' : 'JOT_BASE_URL=' . $original);
-    }
+$tests['codes are five characters and case-insensitive'] = static function (): void {
+	check(Code::is_valid('7k3m9'), 'code parses case-insensitively');
+	check(! Code::is_valid('M7KD'), 'four-character code is rejected');
+	check(! Code::is_valid('M7KDXZ'), 'six-character code is rejected');
+	check(! Code::is_valid('../M7KD'), 'paths are not codes');
 };
-
-$tests['glyph cells are deterministic, decorative, and derived from the complete ID'] = static function (): void {
-    assertSameValue([5, 5, 0], Glyph::cells('M7KD'));
-    assertSameValue([0, 4, 2], Glyph::cells('S4F7'));
-    assertSameValue([1, 0, 3], Glyph::cells('L2XT'));
-    assertSameValue(Glyph::cells('M7KD'), Glyph::cells('m7kd'));
-    $svg = Glyph::svg('M7KD');
-    assertContains('aria-hidden="true"', $svg);
-    assertContains('focusable="false"', $svg);
-    assertContains('currentColor', $svg);
+$tests['glyphs are deterministic, local, and decorative'] = static function (): void {
+	$svg = Glyph::svg('7K3M9');
+	same($svg, Glyph::svg('7k3m9'), 'glyph is case-insensitive');
+	check(str_contains($svg, 'aria-hidden="true"'), 'glyph is hidden from assistive technology');
+	check(str_contains($svg, 'currentColor'), 'glyph uses controlled local presentation');
+	check(! str_contains($svg, 'http'), 'glyph has no remote dependency');
+	check($svg !== Glyph::svg('012YZ'), 'complete code changes the glyph');
 };
-
-$tests['URL validation accepts public-shaped HTTP URLs and rejects malformed input'] = static function (): void {
-    $validator = new UrlValidator();
-    assertSameValue('example.com', $validator->validate('https://example.com/article?q=1')->host);
-    foreach (['', 'ftp://example.com/a', 'https://user:pass@example.com/a', 'https://bad host/a'] as $url) {
-        assertThrows(fn () => $validator->validate($url), HttpException::class, 400);
-    }
-    assertThrows(fn () => $validator->validate('https://example.com/' . str_repeat('a', 4097)), HttpException::class, 400);
+$tests['URL normalization is conservative'] = static function (): void {
+	same('https://example.com/path?q=One#Part', URL::normalize('HTTPS://EXAMPLE.COM:443/path?q=One#Part'), 'scheme, host, and default port normalize');
+	same('http://example.com/', URL::normalize('http://EXAMPLE.com'), 'empty path normalizes to slash');
+	check(URL::normalize('https://example.com/?a=1') !== URL::normalize('https://example.com/?a=2'), 'query parameters are retained');
+	check(URL::normalize('https://example.com/#one') !== URL::normalize('https://example.com/#two'), 'fragments are retained');
 };
-
-$tests['SSRF policy rejects private and mixed DNS answers before connecting'] = static function (): void {
-    $validator = new UrlValidator();
-    foreach ([['127.0.0.1'], ['10.0.0.1'], ['::1'], ['93.184.216.34', '192.168.1.1']] as $addresses) {
-        $client = new CurlHttpClient(
-            $validator,
-            new FakeDns($addresses),
-            PublicUrl::fromString('https://jot.test'),
-        );
-        assertThrows(fn () => $client->get('https://example.com/article'), HttpException::class, 502);
-    }
-};
-
-$tests['article extraction ignores page chrome and counts Unicode words'] = static function (): void {
-    $extractor = new ArticleExtractor();
-    $html = '<html><body><nav>ignored words here</nav><article>Hello world—it\'s déjà vu.</article></body></html>';
-    assertSameValue(5, $extractor->wordCount($html));
-    assertThrows(fn () => $extractor->wordCount('<html><script>only words</script></html>'), HttpException::class, 422);
-};
-
-$tests['length boundaries are exact'] = static function (): void {
-    $classifier = new LengthClassifier();
-    assertSameValue('S', $classifier->prefix(999));
-    assertSameValue('M', $classifier->prefix(1000));
-    assertSameValue('M', $classifier->prefix(2499));
-    assertSameValue('L', $classifier->prefix(2500));
-};
-
-$tests['ID generation uses the Crockford alphabet and four total characters'] = static function (): void {
-    $generator = new IdGenerator(new SequenceRandom([0, 31, 10]));
-    assertSameValue('M0ZA', $generator->generate('M'));
-    assertTrue(preg_match('/^[SML][0123456789ABCDEFGHJKMNPQRSTVWXYZ]{3}$/', $generator->generate('S')) === 1);
-};
-
-$tests['repository distinguishes insert, duplicate URL, and ID collision'] = static function (): void {
-    $repository = repository();
-    assertTrue($repository->insert('S000', 'https://example.com/a')->inserted);
-    assertSameValue('S000', $repository->insert('S111', 'https://example.com/a')->existingId);
-    $collision = $repository->insert('S000', 'https://example.com/b');
-    assertTrue(!$collision->inserted && $collision->existingId === null);
-};
-
-$tests['database schema remains code-only with no stored glyph'] = static function (): void {
-    $initializer = file_get_contents(dirname(__DIR__) . '/bin/init-db.php');
-    assertTrue(is_string($initializer));
-    assertContains('id TEXT PRIMARY KEY', $initializer);
-    assertNotContains('glyph', strtolower($initializer));
-};
-
-$tests['saving returns HTML and preserves the source query string'] = static function (): void {
-    $repository = repository();
-    $http = new FakeHttpClient();
-    $response = application($repository, $http, new SequenceRandom([7, 19, 13]))
-        ->handle('/https://example.com/article?one=1&two=2');
-    assertSameValue(200, $response->status);
-    assertContains('S7K', $response->body);
-    assertContains('one=1&amp;two=2', $response->body);
-    assertSameValue('https://example.com/article?one=1&two=2', $repository->findUrlById('S7KD'));
-};
-
-$tests['saved article IDs reflect extracted medium and long lengths'] = static function (): void {
-    foreach ([[1000, 'M000'], [2500, 'L000']] as [$wordCount, $expectedId]) {
-        $repository = repository();
-        $body = '<article>' . str_repeat('word ', $wordCount) . '</article>';
-        $response = application($repository, new FakeHttpClient($body))->handle('/https://example.com/article');
-        assertSameValue(200, $response->status);
-        assertContains($expectedId, $response->body);
-    }
-};
-
-$tests['duplicate saves reuse the ID without refetching'] = static function (): void {
-    $repository = repository();
-    $repository->insert('M7KD', 'https://example.com/article');
-    $http = new FakeHttpClient();
-    $response = application($repository, $http)->handle('/https://example.com/article');
-    assertSameValue(200, $response->status);
-    assertContains('M7KD', $response->body);
-    assertContains('Already saved', $response->body);
-    assertContains('M — Medium read', $response->body);
-    assertNotContains('Add the mark too, if you like.', $response->body);
-    assertSameValue(0, $http->calls);
-};
-
-$tests['ID collisions retry with a new random ID'] = static function (): void {
-    $repository = repository();
-    $repository->insert('S000', 'https://example.com/existing');
-    $random = new SequenceRandom([0, 0, 0, 1, 1, 1]);
-    $response = application($repository, new FakeHttpClient(), $random)->handle('/https://example.com/new');
-    assertSameValue(200, $response->status);
-    assertSameValue('https://example.com/new', $repository->findUrlById('S111'));
-};
-
-$tests['collision exhaustion returns a generic 500'] = static function (): void {
-    $repository = repository();
-    $repository->insert('S000', 'https://example.com/existing');
-    $response = application($repository, new FakeHttpClient())->handle('/https://example.com/new');
-    assertSameValue(500, $response->status);
-    assertSameValue('/error/500', $response->page);
-    assertContains('Jot could not finish that request. Try again.', $response->body);
-};
-
-$tests['ID lookup is case-insensitive and redirects without caching'] = static function (): void {
-    $repository = repository();
-    $repository->insert('M7KD', 'https://example.com/article');
-    $response = application($repository, new FakeHttpClient())->handle('/m7kd');
-    assertSameValue(302, $response->status);
-    assertSameValue('https://example.com/article', $response->headers['Location']);
-    assertSameValue('no-store', $response->headers['Cache-Control']);
-};
-
-$tests['invalid and unknown IDs return 404'] = static function (): void {
-    $app = application(repository(), new FakeHttpClient());
-    assertSameValue(404, $app->handle('/MIOO')->status);
-    assertSameValue(404, $app->handle('/M7KD')->status);
-};
-
-$tests['fetch and extraction failures do not save an article'] = static function (): void {
-    $repository = repository();
-    $fetchFailure = new FakeHttpClient(error: new HttpException(502, 'The article could not be downloaded.'));
-    assertSameValue(502, application($repository, $fetchFailure)->handle('/https://example.com/a')->status);
-    assertSameValue(null, $repository->findIdByUrl('https://example.com/a'));
-
-    $empty = new FakeHttpClient('<html><body><nav>nothing useful</nav></body></html>');
-    assertSameValue(422, application($repository, $empty)->handle('/https://example.com/b')->status);
-    assertSameValue(null, $repository->findIdByUrl('https://example.com/b'));
-};
-
-$tests['root page and method handling are explicit'] = static function (): void {
-    $app = application(repository(), new FakeHttpClient());
-    assertSameValue(200, $app->handle('/')->status);
-    $response = $app->handle('/', 'POST');
-    assertSameValue(405, $response->status);
-    assertSameValue('GET', $response->headers['Allow']);
-};
-
-$tests['homepage form is semantic and saves through its query parameter'] = static function (): void {
-    $repository = repository();
-    $app = application($repository, new FakeHttpClient(), new SequenceRandom([7, 19, 13]));
-    $home = $app->handle('/');
-    assertContains('<main id="main">', $home->body);
-    assertContains('<label for="url">Article URL</label>', $home->body);
-    assertContains('name="url" type="url"', $home->body);
-    assertContains('href="#main"', $home->body);
-    assertContains('Write the web down.', $home->body);
-    assertContains('four-character reference you can write in your notebook.', $home->body);
-    assertContains('From article to notebook', $home->body);
-    assertContains('Write down <code>M7KD</code>', $home->body);
-    assertContains('<details class="bookmarklet-setup">', $home->body);
-    assertContains('Save from a browser, iPhone, or iPad', $home->body);
-    assertContains('data-saving-status="Saving article…"', $home->body);
-    assertContains('role="status" aria-atomic="true" data-save-status', $home->body);
-    assertContains('draggable="true" data-bookmarklet>Jot this article', $home->body);
-    assertContains('iPhone &amp; iPad', $home->body);
-    assertContains('href="https://www.icloud.com/shortcuts/59f16d7f5b0241bc8d7365fa18dec43b">Add the Jot shortcut</a>', $home->body);
-    assertContains('javascript:location.href=&quot;https://jot.cat/?url=&quot;+encodeURIComponent(location.href)', $home->body);
-    assertContains('<link rel="canonical" href="https://jot.cat/">', $home->body);
-    assertContains('<meta property="og:image" content="https://jot.cat/social-preview.png">', $home->body);
-
-    $saved = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle%3Fone%3D1%26two%3D2');
-    assertSameValue(200, $saved->status);
-    assertContains('Saved', $saved->body);
-    assertContains('data-copy-code="S7KD"', $saved->body);
-    assertContains('<svg class="glyph"', $saved->body);
-    assertContains('id="result-code" translate="no"', $saved->body);
-    assertContains('<bdi>https://example.com/article?one=1&amp;two=2</bdi>', $saved->body);
-    assertContains('S — Short read', $saved->body);
-    assertContains('<div class="result-primary">', $saved->body);
-    assertContains('Write this code in your notebook.', $saved->body);
-    assertContains('Optional notebook mark', $saved->body);
-    assertContains('Add this mark beside the code if you like.', $saved->body);
-    assertNotContains('class="reference"', $saved->body);
-    $openPosition = strpos($saved->body, '>Open article</a>');
-    $copyPosition = strpos($saved->body, '>Copy code</button>');
-    assertTrue($openPosition !== false && $copyPosition !== false && $openPosition < $copyPosition);
-    assertContains('<link rel="canonical" href="https://jot.cat/S7KD">', $saved->body);
-    assertSameValue('https://example.com/article?one=1&two=2', $repository->findUrlById('S7KD'));
-
-    $duplicate = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle%3Fone%3D1%26two%3D2');
-    assertContains('Already saved', $duplicate->body);
-    assertContains('Optional notebook mark', $duplicate->body);
-    assertContains('Add this mark beside the code if you like.', $duplicate->body);
-};
-
-$tests['configured public hostname drives workflow, bookmarklet, links, and metadata'] = static function (): void {
-    $repository = repository();
-    $app = application($repository, new FakeHttpClient(), new SequenceRandom([7, 19, 13]), baseUrl: 'https://notes.example/');
-    $home = $app->handle('/');
-    assertContains('<code>notes.example/M7KD</code>', $home->body);
-    assertContains('https://notes.example/?url=', $home->body);
-    assertContains('<form class="save-form" action="/"', $home->body);
-    assertContains('<link rel="stylesheet" href="/styles.css">', $home->body);
-    assertContains('<script src="/app.js"', $home->body);
-    assertContains('<a class="brand" href="/"', $home->body);
-    assertContains('<a href="/privacy">Privacy</a>', $home->body);
-    assertContains('content="https://notes.example/social-preview.png"', $home->body);
-
-    $saved = $app->handle('/?url=https%3A%2F%2Fexample.com%2Farticle');
-    assertContains('href="https://notes.example/S7KD"', $saved->body);
-    assertContains('<link rel="canonical" href="https://notes.example/S7KD">', $saved->body);
-    assertContains('property="og:url" content="https://notes.example/S7KD"', $saved->body);
-
-    $error = $app->handle('/NOPE');
-    assertSameValue(404, $error->status);
-    assertContains('<a href="/">Back to Jot</a>', $error->body);
-};
-
-$tests['responses expose coarse page categories for server logging'] = static function (): void {
-    $repository = repository();
-    $app = application($repository, new FakeHttpClient(), new SequenceRandom([7, 19, 13]));
-
-    assertSameValue('/', $app->handle('/')->page);
-    assertSameValue('/', $app->handle('/?url=not-a-url')->page);
-    assertSameValue('/result', $app->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret')->page);
-    assertSameValue('/privacy', $app->handle('/privacy')->page);
-    assertSameValue('/article', $app->handle('/S7KD')->page);
-    assertSameValue('/error/404', $app->handle('/NOPE')->page);
-    assertSameValue('/error/405', $app->handle('/', 'POST')->page);
-
-    $failed = application(repository(), new FakeHttpClient(error: new HttpException(502, 'Download failed.')));
-    assertSameValue('/error/502', $failed->handle('/https://example.com/private')->page);
-};
-
-$tests['pageview log messages are structured and exclude request details'] = static function (): void {
-    $response = application(repository(), new FakeHttpClient(), new SequenceRandom([7, 19, 13]))
-        ->handle('/?url=https%3A%2F%2Fexample.com%2Fprivate%3Ftoken%3Dsecret');
-    $message = PageViewLogger::message($response, 'get');
-
-    assertSameValue('[Jot] pageview {"page":"/result","status":200,"method":"GET"}', $message);
-    assertNotContains('https://example.com/private?token=secret', $message);
-    assertNotContains('S7KD', $message);
-
-    $payload = json_decode(substr($message, strlen('[Jot] pageview ')), true, flags: JSON_THROW_ON_ERROR);
-    assertSameValue(['page' => '/result', 'status' => 200, 'method' => 'GET'], $payload);
-};
-
-$tests['invalid form input is retained and associated with its error'] = static function (): void {
-    $response = application(repository(), new FakeHttpClient())->handle('/?url=not-a-url');
-    assertSameValue(400, $response->status);
-    assertContains('value="not-a-url"', $response->body);
-    assertContains('aria-invalid="true" aria-describedby="url-error" autofocus', $response->body);
-    assertContains('<p class="form-error" id="url-error">', $response->body);
-    assertNotContains('role="alert"', $response->body);
-    assertContains('Enter a complete article URL beginning with http:// or https://.', $response->body);
-    assertNotContains('rel="canonical"', $response->body);
-};
-
-$tests['privacy route renders configured details and fails closed when incomplete'] = static function (): void {
-    $ready = application(repository(), new FakeHttpClient(), privacy: privacyPolicy());
-    $response = $ready->handle('/privacy');
-    assertSameValue(200, $response->status);
-    assertContains('Example Operator', $response->body);
-    assertContains('privacy@example.com', $response->body);
-    assertContains('<html lang="de">', $response->body);
-    assertContains('Datenschutzerklärung', $response->body);
-    assertContains('>Zum Inhalt springen</a>', $response->body);
-    assertContains('aria-label="Jot-Startseite"', $response->body);
-    assertContains('aria-label="Fußzeile"', $response->body);
-    assertContains('>Quellcode</a>', $response->body);
-    assertContains('Jot-Zeichen und der Code M7KD', $response->body);
-    assertContains('Art. 77 DSGVO', $response->body);
-    assertContains('§ 25 Abs. 2 Nr. 2 TDDDG', $response->body);
-    assertContains('keine browserseitigen Analyse-, Werbe- oder Trackingdienste', $response->body);
-    assertContains('technische Serverprotokolle nach groben Seitenkategorien', $response->body);
-    assertContains('keine eingegebenen Artikel-URLs, Kurzcodes, IP-Adressen, Referrer oder Browserangaben', $response->body);
-    assertNotContains('Umami', $response->body);
-    assertContains('Berlin Commissioner for Data Protection', $response->body);
-    assertContains('<link rel="canonical" href="https://jot.cat/privacy">', $response->body);
-
-    $incomplete = application(repository(), new FakeHttpClient(), privacy: privacyPolicy(false))->handle('/privacy');
-    assertSameValue(503, $incomplete->status);
-    assertSameValue('/privacy', $incomplete->page);
-};
-
-$tests['progressive copy script and security policy support the enhanced form'] = static function (): void {
-    $script = file_get_contents(dirname(__DIR__) . '/public/app.js');
-    $frontController = file_get_contents(dirname(__DIR__) . '/public/index.php');
-    assertTrue(is_string($script));
-    assertContains('navigator.clipboard', $script);
-    assertContains('button.hidden = false', $script);
-    assertContains('[data-bookmarklet]', $script);
-    assertNotContains('umami', strtolower($script));
-    assertNotContains('data-analytics', $script);
-    assertContains('form.setAttribute("aria-busy", "true")', $script);
-    assertContains('button.classList.add("is-loading")', $script);
-    assertContains('form.dataset.savingStatus', $script);
-    assertContains('delete form.dataset.submitting', $script);
-    assertContains("script-src 'self'", (string) $frontController);
-    assertContains("connect-src 'self'", (string) $frontController);
-    assertContains('PageViewLogger::log', (string) $frontController);
-    assertNotContains('cloud.umami.is', (string) $frontController);
-    assertContains("form-action 'self'", (string) $frontController);
-};
-
-$tests['editorial stylesheet preserves adaptive and accessible interface states'] = static function (): void {
-    $styles = file_get_contents(dirname(__DIR__) . '/public/styles.css');
-    assertTrue(is_string($styles));
-    assertContains('--font-editorial:', $styles);
-    assertContains('text-wrap: balance', $styles);
-    assertContains('font-variant-numeric: tabular-nums slashed-zero', $styles);
-    assertContains('@media (prefers-color-scheme: dark)', $styles);
-    assertContains('@media (prefers-contrast: more)', $styles);
-    assertContains('@media (forced-colors: active)', $styles);
-    assertContains('@media (prefers-reduced-motion: reduce)', $styles);
-    assertContains('border-inline-start:', $styles);
-    assertNotContains('transition: all', $styles);
-    assertNotContains('filter: brightness', $styles);
-};
-
-$tests['social preview is a compact 1200 by 630 PNG'] = static function (): void {
-    $path = dirname(__DIR__) . '/public/social-preview.png';
-    $size = getimagesize($path);
-    assertTrue(is_array($size));
-    assertSameValue(1200, $size[0]);
-    assertSameValue(630, $size[1]);
-    assertSameValue('image/png', $size['mime']);
-    assertTrue(filesize($path) < 300_000, 'social preview should stay below 300 KB');
+$tests['unsafe URL targets are rejected before storage'] = static function (): void {
+	foreach (array('http://127.0.0.1/', 'http://10.0.0.1/', 'http://[::1]/', 'http://localhost/', 'ftp://example.com/') as $url) {
+		$thrown = false;
+		try {
+			URL::validate_for_storage($url);
+		} catch (InvalidArgumentException) {
+			$thrown = true;
+		}
+		check($thrown, "unsafe URL rejected: {$url}");
+	}
+	same('https://93.184.216.34/resource', URL::validate_for_storage('https://93.184.216.34/resource'), 'public IP accepted');
 };
 
 $failures = 0;
 foreach ($tests as $name => $test) {
-    try {
-        $test();
-        fwrite(STDOUT, "✓ {$name}\n");
-    } catch (Throwable $error) {
-        $failures++;
-        fwrite(STDERR, "✗ {$name}\n  {$error->getMessage()}\n");
-    }
+	try {
+		$test();
+		fwrite(STDOUT, "✓ {$name}\n");
+	} catch (Throwable $error) {
+		++$failures;
+		fwrite(STDERR, "✗ {$name}: {$error->getMessage()}\n");
+	}
 }
-
 fwrite(STDOUT, sprintf("\n%d tests, %d failures\n", count($tests), $failures));
-exit($failures === 0 ? 0 : 1);
+exit($failures > 0 ? 1 : 0);

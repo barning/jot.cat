@@ -1,0 +1,41 @@
+name: Release WordPress plugin
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.0"
+          coverage: none
+
+      - name: Verify tag and plugin version
+        shell: bash
+        run: |
+          version=$(sed -n 's/^ \* Version:[[:space:]]*//p' jot-library.php | head -n 1)
+          test "v${version}" = "${GITHUB_REF_NAME}"
+
+      - name: Run dependency-free tests
+        run: |
+          php tests/run.php
+          find . \( -path './.git' -o -path './dist' \) -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Build plugin archive
+        run: bin/build-wordpress-plugin.sh
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" "dist/jot-library-${GITHUB_REF_NAME#v}.zip" --verify-tag --generate-notes --title "Jot Library ${GITHUB_REF_NAME#v}"
