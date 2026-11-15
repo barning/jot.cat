@@ -34,9 +34,7 @@ No. Deactivation preserves all data. Uninstall also preserves data unless an adm
 
 = Can an iOS Shortcut save a link directly? =
 
-Yes. Download the [Jot Library Shortcut template](https://github.com/barning/jot.cat/raw/refs/heads/main/Jot%20Library%20Template.shortcut), also included in the plugin ZIP. Open it in Apple Shortcuts and answer the setup questions for your WordPress API URL and credentials. Enter credentials as username:application-password, using a dedicated Application Password from Users → Profile. Share pages through Share → Jot. Entries are saved as drafts and queued for metadata and topic enrichment.
-
-Share the original template with other people. Keep your configured copy private because it contains your Application Password. See README.md for the complete setup instructions and REST API details.
+Yes. Send an authenticated JSON POST to `/wp-json/jot-library/v1/entries` using a dedicated WordPress Application Password. The endpoint requires permission to create Jot entries, always saves drafts, and queues missing metadata and topic suggestions by default. See README.md for REST API details.
 
 == Changelog ==
 

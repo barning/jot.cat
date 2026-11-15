@@ -43,17 +43,6 @@ When Topics is empty, the same opt-in can suggest up to five topics. Suggestions
 
 ## Save from iPhone or iPad
 
-Download the [Jot Library Shortcut template](<Jot Library Template.shortcut>) and open it in Apple Shortcuts on your iPhone, iPad, or Mac. On GitHub, use **Download raw file** to download the `.shortcut` file. The template is also included in the plugin ZIP.
-
-During import, answer the two setup questions:
-
-1. Enter your WordPress username and a dedicated Application Password together as `username:application-password`. Use a colon between them. Create an Application Password in **Users → Profile → Application Passwords** on your WordPress site.
-2. Enter your site's complete API endpoint, such as `https://your-site.example/wp-json/jot-library/v1/entries`. Replace the example site's address with your own. Jot Library must be active on that site.
-
-Share a page through **Share → Jot** to save it as a draft and queue metadata enrichment. Running Jot directly prompts for a URL. The shortcut displays the API response, including the assigned code or an error message. You can change your setup later through **Shortcut Details → Setup → Customize Shortcut**.
-
-The downloadable template contains credential placeholders. Distribute this original template when sharing with other people. A personally configured copy contains your Application Password and should be kept private.
-
 The plugin registers `POST /wp-json/jot-library/v1/entries` for iOS Shortcuts and other trusted personal clients. Authenticate over HTTPS with a revocable WordPress Application Password. The authenticated user must have the `create_jot_entries` capability; anonymous requests receive `401` and authenticated users without that capability receive `403`.
 
 The JSON request requires `url` and may include `title`, `description`, `notes`, `topics`, `reading_status`, and `fetch_metadata`. Entries created through this endpoint are always drafts. `fetch_metadata` defaults to `true`, which adds the entry to the existing background queue for missing titles, descriptions, and topic suggestions.
