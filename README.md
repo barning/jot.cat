@@ -25,7 +25,7 @@ Activation grants the custom entry capabilities to the Administrator and Editor 
 
 The block is dynamic: WordPress queries only published `jot_entry` posts for the requested page. Search, topics, and pagination use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
 
-Each result leads with its title, source, and curated notes. The title opens the stored external resource directly; a compact reference footer keeps the decorative glyph and labeled code available, and the code button copies the complete stable short URL.
+Each result leads with its title, source, and curated notes. The title opens the stored external resource directly; a compact reference footer contains a clear “Copy short link {CODE}” button that copies the complete stable short URL.
 
 ## Add a saved-links digest to a post
 
@@ -66,11 +66,9 @@ New references contain five uppercase characters from `0123456789ABCDEFGHJKMNPQR
 
 Codes are five characters and case-insensitive. Only published entries resolve through `/j/{CODE}`; an invalid, unknown, draft, or private code produces the site's 404 response. Successful redirects use HTTP 302 and no-cache headers. The external target comes only from the validated stored URL.
 
-## Code and glyph
+## Code and short links
 
-The visible code is the sole lookup key. In the public library it is a keyboard-accessible button that copies the complete short URL and provides brief status feedback. On individual entry pages it remains selectable beside the full short URL.
-
-The adjacent SVG is decorative. PHP derives its fixed coordinates, rotation, and line path from SHA-256 of the complete uppercase five-character code. It is generated locally, stores no image or blob, calls no service, and has `aria-hidden="true"`.
+The visible code is the sole lookup key. In the public library it appears in a keyboard-accessible “Copy short link {CODE}” button that copies the complete short URL and provides brief status feedback. On individual entry pages it remains selectable beside the full short URL.
 
 ## Visibility and privacy
 
@@ -115,8 +113,8 @@ Run the WordPress integration suite in a disposable WordPress 7.0+ installation 
 wp eval-file wp-content/plugins/jot-library/tests/integration.php
 ```
 
-The integration suite covers registration, capabilities, generation and deduplication, immutability, Shortcut authentication and responses, public versus nonpublic resolution, anonymous REST restrictions, dynamic rendering, CSV transfers and enrichment, queue concurrency, and glyph stability. The distributable ZIP excludes `tests/`.
+The integration suite covers registration, capabilities, generation and deduplication, immutability, Shortcut authentication and responses, public versus nonpublic resolution, anonymous REST restrictions, dynamic rendering, CSV transfers and enrichment, and queue concurrency. The distributable ZIP excludes `tests/`.
 
 ## Scope
 
-Jot Library is a link library and notebook-reference tool. It does not archive article bodies, generate topics with AI, recognize handwriting or glyphs, replace the WordPress theme, provide social accounts, accept anonymous submissions, or add a separate SPA or backend.
+Jot Library is a link library and notebook-reference tool. It does not archive article bodies, generate topics with AI, replace the WordPress theme, provide social accounts, accept anonymous submissions, or add a separate SPA or backend.

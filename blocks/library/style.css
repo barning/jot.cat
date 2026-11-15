@@ -125,7 +125,6 @@
 	pointer-events: none;
 }
 
-.jot-library__code,
 .jot-library-entry__code,
 .jot-library-admin__code {
 	font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -138,17 +137,27 @@
 	min-height: 2.75rem;
 	display: inline-flex;
 	align-items: center;
-	border: 0;
-	padding: 0 0.125rem;
+	border: 1px solid var(--jot-control-border);
+	border-radius: 0.25rem;
+	padding: 0.625rem 0.75rem;
 	background: transparent;
 	color: inherit;
-	font-size: 0.875rem;
+	font: inherit;
+	font-size: 0.9375rem;
+	font-weight: 600;
 	line-height: inherit;
-	text-decoration: underline;
-	text-decoration-thickness: from-font;
-	text-underline-offset: 0.18em;
-	white-space: nowrap;
+	text-align: start;
+	white-space: normal;
+	overflow-wrap: anywhere;
 	cursor: pointer;
+}
+
+.jot-library__code-value {
+	display: inline-block;
+	margin-inline-start: 0.35em;
+	font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.08em;
 }
 
 .jot-library__copy {
@@ -179,16 +188,6 @@
 .jot-library__copy-status[data-visible] {
 	visibility: visible;
 	opacity: 1;
-}
-
-.jot-library__reference .jot-library-glyph {
-	width: 1.5rem;
-	height: 1.5rem;
-}
-
-.jot-library__reference-label {
-	color: var(--jot-muted);
-	font-size: 0.8125rem;
 }
 
 .jot-library__content {
@@ -361,12 +360,12 @@
 
 @media (hover: hover) {
 	.jot-library a:hover,
-	.jot-library-entry a:hover,
-	.jot-library__code:hover {
+	.jot-library-entry a:hover {
 		text-decoration-thickness: 0.12em;
 	}
 
-	.jot-library__filters button:hover {
+	.jot-library__filters button:hover,
+	.jot-library__code:hover {
 		background: var(--jot-subtle);
 	}
 }

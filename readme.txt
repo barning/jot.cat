@@ -65,7 +65,7 @@ Yes. Send an authenticated JSON POST to `/wp-json/jot-library/v1/entries` using 
 
 = 0.1.2 =
 
-* Lead public library entries with their titles and move the glyph and short code into a compact reference footer.
+* Lead public library entries with their titles and provide a compact “Copy short link CODE” action in the reference footer.
 * Adapt search and topic controls to wide, medium, and narrow block containers.
 * Keep pagination links anchored to the library page.
 

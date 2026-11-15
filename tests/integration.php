@@ -252,11 +252,12 @@ $tests['dynamic block exposes published content with clear destinations'] = stat
 	jot_check(false !== $notes_position, 'published notes rendered');
 	jot_check(false !== $reference_position, 'reference footer rendered');
 	jot_check($title_position < $notes_position && $notes_position < $reference_position, 'entry uses title-first reading order');
-	jot_check(str_contains($html, 'Short link'), 'short-link purpose labeled');
+	jot_check(str_contains($html, '>Copy short link <span class="jot-library__code-value">' . esc_html($code) . '</span>'), 'short-link copy action names the code');
 	jot_check(str_contains($html, 'class="jot-library__code" type="button"'), 'visible code renders as a button');
 	jot_check(str_contains($html, 'data-jot-copy-url="' . esc_url(home_url('/j/' . rawurlencode($code))) . '"'), 'copy button carries the complete short URL');
 	jot_check(str_contains($html, 'role="status" aria-live="polite"'), 'copy feedback uses a polite live region');
 	jot_check(! str_contains($html, 'class="jot-library__code" href='), 'visible code is not a link');
+	jot_check(! str_contains($html, 'jot-library-glyph'), 'public entries omit decorative illustrations');
 	jot_check(str_contains($html, 'href="https://93.184.216.34/article?utm=kept#part"'), 'title links to the original resource');
 	jot_check(! str_contains($html, 'Draft link'), 'draft omitted');
 

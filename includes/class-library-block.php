@@ -135,8 +135,8 @@ final class Library_Block {
 			. '<p class="jot-library__source">' . esc_html($source) . '</p>'
 			. ('' !== $content_text ? '<p class="jot-library__description">' . esc_html($content_text) . '</p>' : '')
 			. $topics
-			. '<div class="jot-library__reference">' . Glyph::svg($code) . '<span class="jot-library__reference-label">' . esc_html__('Short link', 'jot-library') . '</span>'
-			. '<span class="jot-library__copy"><button class="jot-library__code" type="button" aria-label="' . esc_attr(sprintf(__('Copy short link for %s', 'jot-library'), $code)) . '" aria-describedby="' . esc_attr($copy_status_id) . '" data-jot-copy-url="' . esc_url($short_url) . '" data-jot-copy-success="' . esc_attr__('Short link copied', 'jot-library') . '" data-jot-copy-error="' . esc_attr__('Copy failed', 'jot-library') . '">' . esc_html($code) . '</button>'
+			. '<div class="jot-library__reference">'
+			. '<span class="jot-library__copy"><button class="jot-library__code" type="button" aria-describedby="' . esc_attr($copy_status_id) . '" data-jot-copy-url="' . esc_url($short_url) . '" data-jot-copy-success="' . esc_attr__('Short link copied', 'jot-library') . '" data-jot-copy-error="' . esc_attr__('Copy failed', 'jot-library') . '">' . esc_html__('Copy short link', 'jot-library') . ' <span class="jot-library__code-value">' . esc_html($code) . '</span></button>'
 			. '<span class="jot-library__copy-status" id="' . esc_attr($copy_status_id) . '" role="status" aria-live="polite" aria-atomic="true"></span></span></div>'
 			. '</div></li>';
 	}
