@@ -3,7 +3,7 @@ Contributors: barning
 Tags: bookmarks, library, links, block
 Requires at least: 7.0
 Requires PHP: 8.0
-Stable tag: 0.5.0
+Stable tag: 0.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,10 @@ No. Deactivation preserves all data. Uninstall also preserves data unless an adm
 Yes. Send an authenticated JSON POST to `/wp-json/jot-library/v1/entries` using a dedicated WordPress Application Password. The endpoint requires permission to create Jot entries, always saves drafts, and queues missing metadata and topic suggestions by default. See README.md for REST API details.
 
 == Changelog ==
+
+= 0.5.1 =
+
+* Refresh plugin and block asset versions for the updated public-library copy button.
 
 = 0.5.0 =
 

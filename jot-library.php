@@ -3,7 +3,7 @@
  * Plugin Name: Jot Library
  * Plugin URI:  https://github.com/barning/jot.cat
  * Description: A small, code-first library for curated links and handwritten notebook references.
- * Version:     0.5.0
+ * Version:     0.5.1
  * Requires at least: 7.0
  * Requires PHP: 8.0
  * Author:      Niklas Barning
@@ -17,7 +17,7 @@ if (! defined('ABSPATH')) {
 	exit;
 }
 
-define('JOT_LIBRARY_VERSION', '0.5.0');
+define('JOT_LIBRARY_VERSION', '0.5.1');
 define('JOT_LIBRARY_FILE', __FILE__);
 define('JOT_LIBRARY_DIR', plugin_dir_path(__FILE__));
 define('JOT_LIBRARY_URL', plugin_dir_url(__FILE__));

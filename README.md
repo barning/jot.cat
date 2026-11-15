@@ -12,7 +12,7 @@ Build the installable archive from the repository root:
 bin/build-wordpress-plugin.sh
 ```
 
-Upload `dist/jot-library-0.5.0.zip` through **Plugins → Add New → Upload Plugin**. For development, this repository can also be mounted or copied to `wp-content/plugins/jot-library`. Activate **Jot Library**, then save the site's permalink settings once if the host has unusual rewrite configuration. Activation registers and flushes the `/j/{CODE}` rewrite; it does not flush on ordinary requests.
+Upload `dist/jot-library-0.5.1.zip` through **Plugins → Add New → Upload Plugin**. For development, this repository can also be mounted or copied to `wp-content/plugins/jot-library`. Activate **Jot Library**, then save the site's permalink settings once if the host has unusual rewrite configuration. Activation registers and flushes the `/j/{CODE}` rewrite; it does not flush on ordinary requests.
 
 Activation grants the custom entry capabilities to the Administrator and Editor roles. Deactivation preserves every entry, topic, option, and capability. Uninstall also keeps the library by default. To opt into permanent cleanup, enable **Jot Library → Settings → Permanently delete…** before uninstalling.
 
