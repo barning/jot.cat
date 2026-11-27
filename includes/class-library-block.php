@@ -10,6 +10,8 @@ use WP_Term;
 final class Library_Block {
 	/** Upper bound on entries rendered by repeated "Load more" requests. */
 	private const MAX_LOADED = 240;
+	/** Topic chips shown before the rest fold behind "More". */
+	private const VISIBLE_TOPICS = 6;
 
 	public static function register(): void {
 		register_block_type(JOT_LIBRARY_DIR . 'blocks/library');
@@ -45,7 +47,8 @@ final class Library_Block {
 			$action_url = home_url('/');
 		}
 		$search_id = wp_unique_id('jot-library-search-');
-		$topics = get_terms(array('taxonomy' => Post_Type::TAXONOMY, 'hide_empty' => true));
+		// Most-used topics first, so the chips that stay visible are the useful ones.
+		$topics = get_terms(array('taxonomy' => Post_Type::TAXONOMY, 'hide_empty' => true, 'orderby' => 'count', 'order' => 'DESC'));
 		if (is_wp_error($topics)) {
 			$topics = array();
 		}
@@ -67,11 +70,17 @@ final class Library_Block {
 					<p class="jot-library__count" role="status"><?php echo $count; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above. ?></p>
 					<?php if (array() !== $topics) : ?>
 						<nav class="jot-library__topic-nav" aria-label="<?php esc_attr_e('Topics', 'jot-library'); ?>">
-							<ul>
+							<?php $topics_id = wp_unique_id('jot-library-topics-'); ?>
+							<ul id="<?php echo esc_attr($topics_id); ?>">
 								<li><a href="<?php echo esc_url(self::filter_url($context, '')); ?>"<?php echo '' === $topic ? ' aria-current="page"' : ''; ?>><?php esc_html_e('All', 'jot-library'); ?></a></li>
-								<?php foreach ($topics as $term) : ?>
-									<li><a href="<?php echo esc_url(self::filter_url($context, $term->slug)); ?>"<?php echo $topic === $term->slug ? ' aria-current="page"' : ''; ?>><?php echo esc_html($term->name); ?></a></li>
+								<?php foreach (array_values($topics) as $index => $term) : ?>
+									<?php // Extra topics are visible without JavaScript; the script folds them behind "More". The active topic always stays visible. ?>
+									<li<?php echo $index >= self::VISIBLE_TOPICS && $topic !== $term->slug ? ' data-jot-topic-extra' : ''; ?>><a href="<?php echo esc_url(self::filter_url($context, $term->slug)); ?>"<?php echo $topic === $term->slug ? ' aria-current="page"' : ''; ?>><?php echo esc_html($term->name); ?></a></li>
 								<?php endforeach; ?>
+								<?php $extra = max(0, count($topics) - self::VISIBLE_TOPICS - ('' !== $topic && self::topic_index($topics, $topic) >= self::VISIBLE_TOPICS ? 1 : 0)); ?>
+								<?php if ($extra > 0) : ?>
+									<li class="jot-library__topic-toggle" hidden><button type="button" aria-expanded="false" aria-controls="<?php echo esc_attr($topics_id); ?>" data-jot-topics-toggle data-jot-more="<?php echo esc_attr(sprintf(__('+%s more', 'jot-library'), number_format_i18n($extra))); ?>" data-jot-less="<?php esc_attr_e('Fewer', 'jot-library'); ?>"><?php echo esc_html(sprintf(__('+%s more', 'jot-library'), number_format_i18n($extra))); ?></button></li>
+								<?php endif; ?>
 							</ul>
 						</nav>
 					<?php endif; ?>
@@ -87,6 +96,7 @@ final class Library_Block {
 						<?php echo self::entry(get_the_ID(), $context, ++$position); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Method escapes dynamic values. ?>
 					<?php endwhile; ?>
 				</ol>
+				<p class="screen-reader-text" role="status" aria-live="polite" data-jot-announce></p>
 				<?php echo self::load_more($query, $context, $page, $page_size); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Method escapes dynamic values. ?>
 			<?php elseif ('' !== $search || '' !== $topic) : ?>
 				<div class="jot-library__empty"><h3><?php esc_html_e('No matching entries', 'jot-library'); ?></h3><p><?php esc_html_e('Try another search or clear the filters.', 'jot-library'); ?></p><a href="<?php echo esc_url($action_url); ?>"><?php esc_html_e('Clear filters', 'jot-library'); ?></a></div>
@@ -97,6 +107,16 @@ final class Library_Block {
 		<?php
 		wp_reset_postdata();
 		return (string) ob_get_clean();
+	}
+
+	/** @param array<int|string,mixed> $topics */
+	private static function topic_index(array $topics, string $slug): int {
+		foreach (array_values($topics) as $index => $term) {
+			if ($term instanceof WP_Term && $term->slug === $slug) {
+				return $index;
+			}
+		}
+		return -1;
 	}
 
 	/** @param array{action_url:string,search:string,topic:string} $context */
