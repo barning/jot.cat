@@ -9,9 +9,14 @@ function __(string $message, string $domain = 'default'): string {
 require dirname(__DIR__) . '/includes/class-code.php';
 require dirname(__DIR__) . '/includes/class-url.php';
 require dirname(__DIR__) . '/includes/class-glyph.php';
+if (! defined('MB_IN_BYTES')) {
+	define('MB_IN_BYTES', 1024 * 1024);
+}
+require dirname(__DIR__) . '/includes/class-preview-image.php';
 
 use JotLibrary\Code;
 use JotLibrary\Glyph;
+use JotLibrary\Preview_Image;
 use JotLibrary\URL;
 
 final class Test_Failure extends RuntimeException {}
@@ -55,6 +60,16 @@ $tests['URL normalization is conservative'] = static function (): void {
 	same('http://example.com/', URL::normalize('http://EXAMPLE.com'), 'empty path normalizes to slash');
 	check(URL::normalize('https://example.com/?a=1') !== URL::normalize('https://example.com/?a=2'), 'query parameters are retained');
 	check(URL::normalize('https://example.com/#one') !== URL::normalize('https://example.com/#two'), 'fragments are retained');
+};
+$tests['og:image references resolve against the page URL'] = static function (): void {
+	$page = 'https://example.com/blog/post.html';
+	same('https://cdn.example.com/a.jpg', Preview_Image::resolve('https://cdn.example.com/a.jpg', $page), 'absolute URL kept');
+	same('https://cdn.example.com/a.jpg', Preview_Image::resolve('//cdn.example.com/a.jpg', $page), 'protocol-relative URL uses page scheme');
+	same('https://example.com/img/a.jpg', Preview_Image::resolve('/img/a.jpg', $page), 'root-relative URL uses page origin');
+	same('https://example.com/blog/a.jpg', Preview_Image::resolve('a.jpg', $page), 'relative URL uses page directory');
+	same('https://example.com/a.jpg?w=1&h=2', Preview_Image::resolve('/a.jpg?w=1&amp;h=2', $page), 'entities are decoded');
+	same('', Preview_Image::resolve('data:image/png;base64,AAAA', $page), 'data URLs are ignored');
+	same('', Preview_Image::resolve('  ', $page), 'empty value is ignored');
 };
 $tests['unsafe URL targets are rejected before storage'] = static function (): void {
 	foreach (array('http://127.0.0.1/', 'http://10.0.0.1/', 'http://[::1]/', 'http://localhost/', 'ftp://example.com/') as $url) {

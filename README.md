@@ -20,12 +20,14 @@ Activation grants the custom entry capabilities to the Administrator and Editor 
 
 1. Create or edit a normal WordPress page, ideally with the `/library` slug.
 2. Insert the **Jot Library** block.
-3. Choose a page size and whether to show the search and topic controls.
+3. Choose how many entries each load shows and whether to show the search and topic controls.
 4. Publish the page.
 
-The block is dynamic: WordPress queries only published `jot_entry` posts for the requested page. Search, topics, and pagination use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
+The block is dynamic: WordPress queries only published `jot_entry` posts. Search, topics, and Load more use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
 
-Each result leads with its title, source, and curated notes. The title opens the stored external resource directly; a compact reference footer contains a clear “Copy short link {CODE}” button that copies the complete stable short URL.
+The library is a pinboard. Each entry is a slightly tilted print of its preview image, with the title, source, curator note (or the publisher's description when there is no note) and a meta row below. The meta row holds the saved date and topic links. The entry's code is stamped on the print's corner, and pressing the stamp copies the complete short URL. Hovering or focusing an entry straightens the print and restores full colour. Entries without a preview image show their code glyph on an index card. Logged-in editors also see an "Unread" marker. The block defaults to wide alignment. Narrow containers switch to a single column with a smaller print beside the title.
+
+Search is a single field, and topics appear as linked chips, most-used first. The six most-used topics show by default, and the rest fold behind a "+N more" chip; the active topic always stays visible. Without JavaScript every chip is shown. The pinboard lazy-loads the next batch as the reader nears its end, without moving keyboard focus, and announces the new entries to screen readers. A **Load more** link stays below the pinboard as a fallback and shows progress while loading. Without JavaScript it opens a page showing every entry up to that batch, so the URL can be reloaded or shared. The block setting "Entries per load" controls the batch size, and at most 240 entries are rendered in one request. Colours and typography come from the active theme: the frame, stamp and active chip use its base and contrast colours, and the tape and note rule use its first accent colour.
 
 ## Add a saved-links digest to a post
 
@@ -37,7 +39,7 @@ The date range remains stored as block attributes while the results are queried 
 
 Use **Jot Library → Save URL**. The form accepts a public HTTP or HTTPS URL, title, short description, topics, personal notes, reading status, and WordPress visibility. Saving is an authenticated, nonce-protected POST. The bookmarklet only prefills this form; the authenticated Shortcut API below can save a shared URL directly.
 
-Metadata fetching is optional. When selected, it uses `wp_safe_remote_get()` with a five-second timeout, three redirects, a 2 MiB response cap, and HTML-only parsing. A fetch failure never prevents saving: the source domain becomes the fallback title and the curator can edit it later. Scripts, embeds, and remote HTML are never rendered.
+Metadata fetching is optional. When it finds an `og:image` (or `twitter:image`), the image is downloaded once on the server, added to the Media Library, and set as the entry's featured image. The public library therefore never hotlinks the source site. Images are limited to 2 MiB in JPEG, PNG, GIF, WebP, or AVIF format. An existing featured image is never replaced, and editors can change or remove it from the entry's edit screen. When selected, it uses `wp_safe_remote_get()` with a five-second timeout, three redirects, a 2 MiB response cap, and HTML-only parsing. A fetch failure never prevents saving: the source domain becomes the fallback title and the curator can edit it later. Scripts, embeds, and remote HTML are never rendered.
 
 When Topics is empty, the same opt-in can suggest up to five topics. Suggestions combine the page’s keyword and `article:tag` metadata with exact matches from topics already used in the library. They are saved as normal WordPress terms and remain editable. The plugin does not send content to an AI or suggestion service.
 
@@ -74,7 +76,7 @@ The visible code is the sole lookup key. In the public library it appears in a k
 
 WordPress statuses control visibility. Published entries may appear in the library block, individual pages, WordPress search and feeds, public REST post responses, and `/j/{CODE}`. Draft and private entries, including their notes, URLs, and codes, remain subject to WordPress post permissions and are never used by the public block or redirect lookup. Entry meta is not registered for public REST output.
 
-Publishing a URL makes the title, description, notes, source domain, topics, code, and external destination public. Optional metadata fetching sends a server-side request to the submitted host. Document those facts in the site's real privacy policy after legal review; this plugin makes no legal claims. It adds no cookies, trackers, analytics, external assets, or anonymous submission endpoint. The Shortcut endpoint accepts only authenticated requests and always creates nonpublic drafts.
+Publishing a URL makes the title, description, notes, source domain, topics, code, and external destination public. Optional metadata fetching sends a server-side request to the submitted host and, when the page names a preview image, to that image host. Document those facts in the site's real privacy policy after legal review; this plugin makes no legal claims. It adds no cookies, trackers, analytics, external assets, or anonymous submission endpoint. The Shortcut endpoint accepts only authenticated requests and always creates nonpublic drafts.
 
 ## CSV import and export
 

@@ -104,6 +104,8 @@ final class Metadata_Enricher {
 			wp_update_post($updates);
 		}
 
+		Preview_Image::attach($post_id, $metadata['image']);
+
 		$existing = wp_get_object_terms($post_id, Post_Type::TAXONOMY, array('fields' => 'names'));
 		$existing = is_wp_error($existing) ? array() : array_values(array_map('strval', $existing));
 		$suggested = (new Topic_Suggester())->suggest($url, $title, $description, (string) $post->post_content, $metadata['topics']);

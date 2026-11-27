@@ -18,7 +18,7 @@
 						PanelBody,
 						{ title: __("Library settings", "jot-library") },
 						el(RangeControl, {
-							label: __("Entries per page", "jot-library"),
+							label: __("Entries per load", "jot-library"),
 							min: 1,
 							max: 48,
 							value: attributes.postsPerPage,

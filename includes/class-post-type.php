@@ -29,7 +29,7 @@ final class Post_Type {
 				'has_archive' => false,
 				'rewrite' => array('slug' => 'library-entry', 'with_front' => false),
 				'menu_icon' => 'dashicons-book-alt',
-				'supports' => array('title', 'editor', 'excerpt', 'author'),
+				'supports' => array('title', 'editor', 'excerpt', 'author', 'thumbnail'),
 				'taxonomies' => array(self::TAXONOMY),
 				'capability_type' => array('jot_entry', 'jot_entries'),
 				'map_meta_cap' => true,
