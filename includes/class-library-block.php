@@ -143,10 +143,12 @@ final class Library_Block {
 	}
 
 	/**
-	 * Featured image (copied from the page's og:image) beside the entry. Entries
-	 * without one show their glyph so the column rhythm stays intact.
+	 * Featured image (copied from the page's og:image) beside the entry, framed like a
+	 * print pinned into a notebook. Entries without one show their glyph on an index card.
 	 */
 	private static function media(int $post_id, string $code, string $url): string {
+		$style = ' style="--jot-tilt:' . esc_attr(self::tilt($code)) . '"';
+		$stamp = '<span class="jot-library__stamp">' . esc_html($code) . '</span>';
 		$thumbnail_id = (int) get_post_thumbnail_id($post_id);
 		if ($thumbnail_id > 0) {
 			$image = wp_get_attachment_image(
@@ -158,15 +160,23 @@ final class Library_Block {
 					'alt' => '',
 					'loading' => 'lazy',
 					'decoding' => 'async',
-					'sizes' => '(min-width: 52rem) 16rem, (min-width: 34rem) 12rem, 100vw',
+					'sizes' => '(min-width: 52rem) 18rem, (min-width: 34rem) 14rem, 100vw',
 				)
 			);
 			if ('' !== $image) {
 				// The title carries the accessible link; this duplicate stays out of the tab order.
-				return '<a class="jot-library__media" href="' . esc_url($url) . '" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">' . $image . '</a>';
+				return '<a class="jot-library__media" href="' . esc_url($url) . '" rel="noopener noreferrer" tabindex="-1" aria-hidden="true"' . $style . '>'
+					. '<span class="jot-library__print">' . $image . '</span>' . $stamp . '</a>';
 			}
 		}
-		return '<div class="jot-library__media jot-library__media--glyph" aria-hidden="true">' . Glyph::svg($code) . '</div>';
+		return '<div class="jot-library__media jot-library__media--glyph" aria-hidden="true"' . $style . '>'
+			. '<span class="jot-library__print">' . Glyph::svg($code) . '</span>' . $stamp . '</div>';
+	}
+
+	/** A small, stable rotation per code so the list looks hand-placed but never reshuffles. */
+	private static function tilt(string $code): string {
+		$angles = array('-3deg', '-2deg', '-1.25deg', '1.25deg', '2deg', '2.75deg');
+		return $angles[crc32(Code::normalize($code)) % count($angles)];
 	}
 
 	private static function pagination(WP_Query $query, string $search, string $topic, string $base_url): string {
