@@ -25,7 +25,9 @@ Activation grants the custom entry capabilities to the Administrator and Editor 
 
 The block is dynamic: WordPress queries only published `jot_entry` posts for the requested page. Search, topics, and pagination use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
 
-Each result shows a preview image beside its title, source, and curated notes. The image column stacks above the text in narrow containers. Entries without a preview image show their code glyph in the same slot. Colours and typography come from the active theme. The title opens the stored external resource directly; a compact reference footer contains a clear “Copy short link {CODE}” button that copies the complete stable short URL.
+Each result shows a preview image as a slightly tilted print beside the title and source. Below them come the publisher's description, the curator's note set apart as an annotation, and a meta row with the saved date and topic links. The entry's code is stamped on the print's corner, and pressing the stamp copies the complete short URL. Hovering or focusing an entry straightens the print and restores full colour. Entries without a preview image show their code glyph on an index card. Logged-in editors also see an "Unread" marker for entries they have not read yet.
+
+Search is a single field, and topics appear as a row of chips. Topic chips and the topic links on each entry are ordinary links, so filtering works without JavaScript. Choose **Pinboard grid** in the block's Layout setting to show the prints in a responsive grid, ideally with a wide or full alignment. Narrow containers place a smaller print beside the title. Colours and typography come from the active theme: the frame, stamp and active chip use its base and contrast colours, and the tape and note rule use its first accent colour.
 
 ## Add a saved-links digest to a post
 

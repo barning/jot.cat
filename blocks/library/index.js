@@ -1,7 +1,7 @@
 (function (blocks, element, blockEditor, components, i18n, serverSideRender) {
 	const el = element.createElement;
 	const { InspectorControls, useBlockProps } = blockEditor;
-	const { PanelBody, RangeControl, ToggleControl } = components;
+	const { PanelBody, RangeControl, SelectControl, ToggleControl } = components;
 	const { __ } = i18n;
 	const ServerSideRender = serverSideRender;
 
@@ -23,6 +23,16 @@
 							max: 48,
 							value: attributes.postsPerPage,
 							onChange: (value) => setAttributes({ postsPerPage: value }),
+						}),
+						el(SelectControl, {
+							label: __("Layout", "jot-library"),
+							value: attributes.layout,
+							options: [
+								{ label: __("List", "jot-library"), value: "list" },
+								{ label: __("Pinboard grid", "jot-library"), value: "grid" },
+							],
+							help: __("The pinboard works best with a wide or full-width alignment.", "jot-library"),
+							onChange: (value) => setAttributes({ layout: value }),
 						}),
 						el(ToggleControl, {
 							label: __("Show search and topic filters", "jot-library"),

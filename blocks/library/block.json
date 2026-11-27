@@ -16,6 +16,11 @@
     "showSearch": {
       "type": "boolean",
       "default": true
+    },
+    "layout": {
+      "type": "string",
+      "enum": ["list", "grid"],
+      "default": "list"
     }
   },
   "supports": {

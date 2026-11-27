@@ -48,10 +48,12 @@
 
 		status.textContent = message;
 		status.setAttribute("data-visible", "");
+		button.setAttribute("data-copied", "");
 		timers.set(
 			status,
 			window.setTimeout(function () {
 				status.removeAttribute("data-visible");
+				button.removeAttribute("data-copied");
 				status.textContent = "";
 				timers.delete(status);
 			}, 2000)
