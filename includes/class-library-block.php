@@ -8,6 +8,9 @@ use WP_Query;
 use WP_Term;
 
 final class Library_Block {
+	/** Upper bound on entries rendered by repeated "Load more" requests. */
+	private const MAX_LOADED = 240;
+
 	public static function register(): void {
 		register_block_type(JOT_LIBRARY_DIR . 'blocks/library');
 	}
@@ -17,15 +20,17 @@ final class Library_Block {
 		$defaults = Settings::get();
 		$page_size = min(48, max(1, absint($attributes['postsPerPage'] ?? $defaults['entries_per_page'])));
 		$show_search = ! isset($attributes['showSearch']) || (bool) $attributes['showSearch'];
-		$layout = 'grid' === ($attributes['layout'] ?? 'list') ? 'grid' : 'list';
 		$search = isset($_GET['jot_search']) ? sanitize_text_field(wp_unslash((string) $_GET['jot_search'])) : '';
 		$topic = isset($_GET['jot_topic']) ? sanitize_title(wp_unslash((string) $_GET['jot_topic'])) : '';
+		// "Load more" is cumulative: page N shows every entry up to N, so the URL can be
+		// reloaded or shared and still lands on the same place without JavaScript.
 		$page = isset($_GET['jot_page']) ? max(1, absint($_GET['jot_page'])) : 1;
+		$page = min($page, max(1, intdiv(self::MAX_LOADED, $page_size)));
 		$args = array(
 			'post_type' => Post_Type::TYPE,
 			'post_status' => 'publish',
-			'posts_per_page' => $page_size,
-			'paged' => $page,
+			'posts_per_page' => $page_size * $page,
+			'paged' => 1,
 			's' => $search,
 			'ignore_sticky_posts' => true,
 		);
@@ -34,7 +39,7 @@ final class Library_Block {
 		}
 
 		$query = new WP_Query($args);
-		$wrapper = get_block_wrapper_attributes(array('class' => 'jot-library jot-library--' . $layout));
+		$wrapper = get_block_wrapper_attributes(array('class' => 'jot-library'));
 		$action_url = get_permalink();
 		if (! is_string($action_url) || '' === $action_url) {
 			$action_url = home_url('/');
@@ -77,11 +82,12 @@ final class Library_Block {
 
 			<?php if ($query->have_posts()) : ?>
 				<ol class="jot-library__entries">
+					<?php $position = 0; ?>
 					<?php while ($query->have_posts()) : $query->the_post(); ?>
-						<?php echo self::entry(get_the_ID(), $context, $layout); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Method escapes dynamic values. ?>
+						<?php echo self::entry(get_the_ID(), $context, ++$position); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Method escapes dynamic values. ?>
 					<?php endwhile; ?>
 				</ol>
-				<?php echo self::pagination($query, $search, $topic, $action_url); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Core-generated links are escaped. ?>
+				<?php echo self::load_more($query, $context, $page, $page_size); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Method escapes dynamic values. ?>
 			<?php elseif ('' !== $search || '' !== $topic) : ?>
 				<div class="jot-library__empty"><h3><?php esc_html_e('No matching entries', 'jot-library'); ?></h3><p><?php esc_html_e('Try another search or clear the filters.', 'jot-library'); ?></p><a href="<?php echo esc_url($action_url); ?>"><?php esc_html_e('Clear filters', 'jot-library'); ?></a></div>
 			<?php else : ?>
@@ -106,7 +112,7 @@ final class Library_Block {
 	}
 
 	/** @param array{action_url:string,search:string,topic:string} $context */
-	private static function entry(int $post_id, array $context, string $layout): string {
+	private static function entry(int $post_id, array $context, int $position): string {
 		$code = (string) get_post_meta($post_id, Entry_Service::META_CODE, true);
 		$url = (string) get_post_meta($post_id, Entry_Service::META_URL, true);
 		$source = (string) get_post_meta($post_id, Entry_Service::META_SOURCE, true);
@@ -123,7 +129,7 @@ final class Library_Block {
 			$meta .= '<span class="jot-library__unread">' . esc_html__('Unread', 'jot-library') . '</span>';
 		}
 		$terms = get_the_terms($post_id, Post_Type::TAXONOMY);
-		if (is_array($terms) && 'grid' !== $layout) {
+		if (is_array($terms)) {
 			$meta .= '<ul class="jot-library__topics" aria-label="' . esc_attr__('Topics', 'jot-library') . '">';
 			foreach ($terms as $term) {
 				if ($term instanceof WP_Term) {
@@ -134,15 +140,16 @@ final class Library_Block {
 			$meta .= '</ul>';
 		}
 
-		$body = '';
-		if ('' !== $description) {
-			$body .= '<p class="jot-library__description">' . esc_html($description) . '</p>';
-		}
+		// Cards stay short: the curator's note wins, the publisher's summary fills in otherwise.
 		if ('' !== $notes) {
-			$body .= '<p class="jot-library__note"><span class="screen-reader-text">' . esc_html__('Curator note:', 'jot-library') . ' </span>' . esc_html($notes) . '</p>';
+			$body = '<p class="jot-library__note"><span class="screen-reader-text">' . esc_html__('Curator note:', 'jot-library') . ' </span>' . esc_html($notes) . '</p>';
+		} elseif ('' !== $description) {
+			$body = '<p class="jot-library__description">' . esc_html($description) . '</p>';
+		} else {
+			$body = '';
 		}
 
-		return '<li class="jot-library__entry">'
+		return '<li class="jot-library__entry" id="jot-library-item-' . $position . '">'
 			. self::media($post_id, $code, $url)
 			. '<div class="jot-library__header"><h3><a href="' . esc_url($url) . '" rel="noopener noreferrer">' . esc_html(get_the_title($post_id)) . '</a></h3>'
 			. '<p class="jot-library__source">' . esc_html($source) . '</p></div>'
@@ -218,19 +225,17 @@ final class Library_Block {
 	}
 
 
-	private static function pagination(WP_Query $query, string $search, string $topic, string $base_url): string {
-		if ($query->max_num_pages < 2) {
-			return '';
+	/** @param array{action_url:string,search:string,topic:string} $context */
+	private static function load_more(WP_Query $query, array $context, int $page, int $page_size): string {
+		$shown = count($query->posts);
+		$total = (int) $query->found_posts;
+		$progress = '<p class="jot-library__progress">' . esc_html(sprintf(__('Showing %1$s of %2$s', 'jot-library'), number_format_i18n($shown), number_format_i18n($total))) . '</p>';
+		if ($shown >= $total || $page + 1 > max(1, intdiv(self::MAX_LOADED, $page_size))) {
+			return $total > $page_size ? '<div class="jot-library__more">' . $progress . '</div>' : '';
 		}
-		if ('' !== $search) {
-			$base_url = add_query_arg('jot_search', $search, $base_url);
-		}
-		if ('' !== $topic) {
-			$base_url = add_query_arg('jot_topic', $topic, $base_url);
-		}
-		$placeholder = 999999999;
-		$base = str_replace((string) $placeholder, '%#%', add_query_arg('jot_page', $placeholder, $base_url));
-		$links = paginate_links(array('base' => $base, 'format' => '', 'current' => max(1, absint($_GET['jot_page'] ?? 1)), 'total' => $query->max_num_pages, 'type' => 'list', 'prev_text' => __('Previous', 'jot-library'), 'next_text' => __('Next', 'jot-library')));
-		return is_string($links) ? '<nav class="jot-library__pagination" aria-label="' . esc_attr__('Library pages', 'jot-library') . '">' . $links . '</nav>' : '';
+
+		$url = add_query_arg('jot_page', $page + 1, self::filter_url($context, $context['topic'])) . '#jot-library-item-' . ($shown + 1);
+		return '<div class="jot-library__more">' . $progress
+			. '<a class="jot-library__more-link" href="' . esc_url($url) . '" data-jot-load-more data-jot-loading="' . esc_attr__('Loading…', 'jot-library') . '" data-jot-loaded="' . esc_attr__('%s more entries loaded', 'jot-library') . '">' . esc_html__('Load more', 'jot-library') . '</a></div>';
 	}
 }

@@ -6,7 +6,7 @@
   "title": "Jot Library",
   "category": "widgets",
   "icon": "book-alt",
-  "description": "Display the published Jot Library with search, topic filters, and pagination.",
+  "description": "Display the published Jot Library as a pinboard with search, topic filters, and a Load more button.",
   "textdomain": "jot-library",
   "attributes": {
     "postsPerPage": {
@@ -17,10 +17,9 @@
       "type": "boolean",
       "default": true
     },
-    "layout": {
+    "align": {
       "type": "string",
-      "enum": ["list", "grid"],
-      "default": "list"
+      "default": "wide"
     }
   },
   "supports": {

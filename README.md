@@ -20,14 +20,14 @@ Activation grants the custom entry capabilities to the Administrator and Editor 
 
 1. Create or edit a normal WordPress page, ideally with the `/library` slug.
 2. Insert the **Jot Library** block.
-3. Choose a page size and whether to show the search and topic controls.
+3. Choose how many entries each load shows and whether to show the search and topic controls.
 4. Publish the page.
 
-The block is dynamic: WordPress queries only published `jot_entry` posts for the requested page. Search, topics, and pagination use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
+The block is dynamic: WordPress queries only published `jot_entry` posts. Search, topics, and Load more use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
 
-Each result shows a preview image as a slightly tilted print beside the title and source. Below them come the publisher's description, the curator's note set apart as an annotation, and a meta row with the saved date and topic links. The entry's code is stamped on the print's corner, and pressing the stamp copies the complete short URL. Hovering or focusing an entry straightens the print and restores full colour. Entries without a preview image show their code glyph on an index card. Logged-in editors also see an "Unread" marker for entries they have not read yet.
+The library is a pinboard. Each entry is a slightly tilted print of its preview image, with the title, source, curator note (or the publisher's description when there is no note) and a meta row below. The meta row holds the saved date and topic links. The entry's code is stamped on the print's corner, and pressing the stamp copies the complete short URL. Hovering or focusing an entry straightens the print and restores full colour. Entries without a preview image show their code glyph on an index card. Logged-in editors also see an "Unread" marker. The block defaults to wide alignment. Narrow containers switch to a single column with a smaller print beside the title.
 
-Search is a single field, and topics appear as a row of chips. Topic chips and the topic links on each entry are ordinary links, so filtering works without JavaScript. Choose **Pinboard grid** in the block's Layout setting to show the prints in a responsive grid, ideally with a wide or full alignment. Narrow containers place a smaller print beside the title. Colours and typography come from the active theme: the frame, stamp and active chip use its base and contrast colours, and the tape and note rule use its first accent colour.
+Search is a single field, and topics appear as a row of linked chips. A **Load more** button below the pinboard appends the next batch in place. Without JavaScript it opens a page showing every entry up to that batch, so the URL can be reloaded or shared. The block setting "Entries per load" controls the batch size, and at most 240 entries are rendered in one request. Colours and typography come from the active theme: the frame, stamp and active chip use its base and contrast colours, and the tape and note rule use its first accent colour.
 
 ## Add a saved-links digest to a post
 
