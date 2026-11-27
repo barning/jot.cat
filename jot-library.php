@@ -27,6 +27,7 @@ require_once JOT_LIBRARY_DIR . 'includes/class-url.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-glyph.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-post-type.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-entry-service.php';
+require_once JOT_LIBRARY_DIR . 'includes/class-preview-image.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-metadata-fetcher.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-topic-suggester.php';
 require_once JOT_LIBRARY_DIR . 'includes/class-metadata-enricher.php';

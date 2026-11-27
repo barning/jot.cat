@@ -182,8 +182,10 @@ final class Admin {
 		$notes = isset($_POST['jot_notes']) ? wp_kses_post(wp_unslash((string) $_POST['jot_notes'])) : '';
 		$tags = isset($_POST['jot_tags']) ? array_values(array_filter(array_map('trim', explode(',', sanitize_text_field(wp_unslash((string) $_POST['jot_tags'])))))) : array();
 		$suggested = 0;
-		if (! empty($_POST['jot_fetch_metadata']) && ('' === $title || '' === $description || array() === $tags)) {
+		$image = '';
+		if (! empty($_POST['jot_fetch_metadata'])) {
 			$metadata = (new Metadata_Fetcher())->fetch($url);
+			$image = $metadata['image'];
 			$title = '' !== $title ? $title : $metadata['title'];
 			$description = '' !== $description ? $description : $metadata['description'];
 			if (array() === $tags) {
@@ -227,6 +229,10 @@ final class Admin {
 			);
 			wp_safe_redirect(add_query_arg(array('jot_error' => $key), $target));
 			exit;
+		}
+
+		if ($result['created'] && '' !== $image) {
+			Preview_Image::attach((int) $result['id'], $image);
 		}
 
 		wp_safe_redirect(add_query_arg(array('saved' => $result['id'], 'created' => $result['created'] ? '1' : '0', 'suggested' => $result['created'] ? $suggested : 0), $target));

@@ -25,7 +25,7 @@ Activation grants the custom entry capabilities to the Administrator and Editor 
 
 The block is dynamic: WordPress queries only published `jot_entry` posts for the requested page. Search, topics, and pagination use ordinary GET parameters and work without JavaScript. Its stylesheet loads with the block instead of on unrelated pages. Individual entries use the active theme and receive a compact reference panel before their notes.
 
-Each result leads with its title, source, and curated notes. The title opens the stored external resource directly; a compact reference footer contains a clear “Copy short link {CODE}” button that copies the complete stable short URL.
+Each result shows a preview image beside its title, source, and curated notes. The image column stacks above the text in narrow containers. Entries without a preview image show their code glyph in the same slot. Colours and typography come from the active theme. The title opens the stored external resource directly; a compact reference footer contains a clear “Copy short link {CODE}” button that copies the complete stable short URL.
 
 ## Add a saved-links digest to a post
 
@@ -37,7 +37,7 @@ The date range remains stored as block attributes while the results are queried 
 
 Use **Jot Library → Save URL**. The form accepts a public HTTP or HTTPS URL, title, short description, topics, personal notes, reading status, and WordPress visibility. Saving is an authenticated, nonce-protected POST. The bookmarklet only prefills this form; the authenticated Shortcut API below can save a shared URL directly.
 
-Metadata fetching is optional. When selected, it uses `wp_safe_remote_get()` with a five-second timeout, three redirects, a 2 MiB response cap, and HTML-only parsing. A fetch failure never prevents saving: the source domain becomes the fallback title and the curator can edit it later. Scripts, embeds, and remote HTML are never rendered.
+Metadata fetching is optional. When it finds an `og:image` (or `twitter:image`), the image is downloaded once on the server, added to the Media Library, and set as the entry's featured image. The public library therefore never hotlinks the source site. Images are limited to 2 MiB in JPEG, PNG, GIF, WebP, or AVIF format. An existing featured image is never replaced, and editors can change or remove it from the entry's edit screen. When selected, it uses `wp_safe_remote_get()` with a five-second timeout, three redirects, a 2 MiB response cap, and HTML-only parsing. A fetch failure never prevents saving: the source domain becomes the fallback title and the curator can edit it later. Scripts, embeds, and remote HTML are never rendered.
 
 When Topics is empty, the same opt-in can suggest up to five topics. Suggestions combine the page’s keyword and `article:tag` metadata with exact matches from topics already used in the library. They are saved as normal WordPress terms and remain editable. The plugin does not send content to an AI or suggestion service.
 
@@ -74,7 +74,7 @@ The visible code is the sole lookup key. In the public library it appears in a k
 
 WordPress statuses control visibility. Published entries may appear in the library block, individual pages, WordPress search and feeds, public REST post responses, and `/j/{CODE}`. Draft and private entries, including their notes, URLs, and codes, remain subject to WordPress post permissions and are never used by the public block or redirect lookup. Entry meta is not registered for public REST output.
 
-Publishing a URL makes the title, description, notes, source domain, topics, code, and external destination public. Optional metadata fetching sends a server-side request to the submitted host. Document those facts in the site's real privacy policy after legal review; this plugin makes no legal claims. It adds no cookies, trackers, analytics, external assets, or anonymous submission endpoint. The Shortcut endpoint accepts only authenticated requests and always creates nonpublic drafts.
+Publishing a URL makes the title, description, notes, source domain, topics, code, and external destination public. Optional metadata fetching sends a server-side request to the submitted host and, when the page names a preview image, to that image host. Document those facts in the site's real privacy policy after legal review; this plugin makes no legal claims. It adds no cookies, trackers, analytics, external assets, or anonymous submission endpoint. The Shortcut endpoint accepts only authenticated requests and always creates nonpublic drafts.
 
 ## CSV import and export
 

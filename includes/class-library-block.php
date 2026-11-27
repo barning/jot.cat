@@ -131,6 +131,7 @@ final class Library_Block {
 		$short_url = home_url('/j/' . rawurlencode($code));
 
 		return '<li class="jot-library__entry">'
+			. self::media($post_id, $code, $url)
 			. '<div class="jot-library__content"><h3><a href="' . esc_url($url) . '" rel="noopener noreferrer">' . esc_html(get_the_title($post_id)) . '</a></h3>'
 			. '<p class="jot-library__source">' . esc_html($source) . '</p>'
 			. ('' !== $content_text ? '<p class="jot-library__description">' . esc_html($content_text) . '</p>' : '')
@@ -139,6 +140,33 @@ final class Library_Block {
 			. '<span class="jot-library__copy"><button class="jot-library__code" type="button" aria-describedby="' . esc_attr($copy_status_id) . '" data-jot-copy-url="' . esc_url($short_url) . '" data-jot-copy-success="' . esc_attr__('Short link copied', 'jot-library') . '" data-jot-copy-error="' . esc_attr__('Copy failed', 'jot-library') . '">' . esc_html__('Copy short link', 'jot-library') . ' <span class="jot-library__code-value">' . esc_html($code) . '</span></button>'
 			. '<span class="jot-library__copy-status" id="' . esc_attr($copy_status_id) . '" role="status" aria-live="polite" aria-atomic="true"></span></span></div>'
 			. '</div></li>';
+	}
+
+	/**
+	 * Featured image (copied from the page's og:image) beside the entry. Entries
+	 * without one show their glyph so the column rhythm stays intact.
+	 */
+	private static function media(int $post_id, string $code, string $url): string {
+		$thumbnail_id = (int) get_post_thumbnail_id($post_id);
+		if ($thumbnail_id > 0) {
+			$image = wp_get_attachment_image(
+				$thumbnail_id,
+				'medium_large',
+				false,
+				array(
+					'class' => 'jot-library__image',
+					'alt' => '',
+					'loading' => 'lazy',
+					'decoding' => 'async',
+					'sizes' => '(min-width: 52rem) 16rem, (min-width: 34rem) 12rem, 100vw',
+				)
+			);
+			if ('' !== $image) {
+				// The title carries the accessible link; this duplicate stays out of the tab order.
+				return '<a class="jot-library__media" href="' . esc_url($url) . '" rel="noopener noreferrer" tabindex="-1" aria-hidden="true">' . $image . '</a>';
+			}
+		}
+		return '<div class="jot-library__media jot-library__media--glyph" aria-hidden="true">' . Glyph::svg($code) . '</div>';
 	}
 
 	private static function pagination(WP_Query $query, string $search, string $topic, string $base_url): string {

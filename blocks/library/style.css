@@ -102,7 +102,41 @@
 }
 
 .jot-library__entry {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 1.25rem;
 	padding-block: clamp(2rem, 5cqi, 3rem);
+}
+
+.jot-library__media {
+	display: block;
+	aspect-ratio: 1.91 / 1;
+	overflow: hidden;
+	border-radius: 0.25rem;
+	background: var(--jot-subtle);
+}
+
+.jot-library__media:focus-visible {
+	outline-offset: 3px;
+}
+
+.jot-library .jot-library__image {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	object-fit: cover;
+}
+
+.jot-library__media--glyph {
+	display: grid;
+	place-items: center;
+}
+
+.jot-library__media--glyph .jot-library-glyph {
+	width: clamp(3rem, 10cqi, 4.5rem);
+	height: clamp(3rem, 10cqi, 4.5rem);
+	opacity: 0.55;
 }
 
 .jot-library__entry + .jot-library__entry {
@@ -339,7 +373,23 @@
 	}
 }
 
+@container (width >= 34rem) {
+	.jot-library__entry {
+		grid-template-columns: clamp(10rem, 30cqi, 17rem) minmax(0, 1fr);
+		align-items: start;
+		gap: clamp(1.25rem, 4cqi, 2.25rem);
+	}
+
+	.jot-library__media {
+		margin-block-start: 0.35em;
+	}
+}
+
 @container (width < 34rem) {
+	.jot-library__media--glyph {
+		display: none;
+	}
+
 	.jot-library__filters {
 		grid-template-areas:
 			"search"
@@ -359,6 +409,14 @@
 }
 
 @media (hover: hover) {
+	.jot-library__media img {
+		transition: opacity 120ms cubic-bezier(0.2, 0, 0, 1);
+	}
+
+	.jot-library__media:hover img {
+		opacity: 0.85;
+	}
+
 	.jot-library a:hover,
 	.jot-library-entry a:hover {
 		text-decoration-thickness: 0.12em;

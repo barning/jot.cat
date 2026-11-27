@@ -8,7 +8,7 @@ use DOMDocument;
 use DOMXPath;
 
 final class Metadata_Fetcher {
-	/** @return array{title:string,description:string,topics:list<string>} */
+	/** @return array{title:string,description:string,topics:list<string>,image:string} */
 	public function fetch(string $url): array {
 		$response = wp_safe_remote_get(
 			$url,
@@ -20,17 +20,17 @@ final class Metadata_Fetcher {
 			)
 		);
 		if (is_wp_error($response) || 200 > wp_remote_retrieve_response_code($response) || 300 <= wp_remote_retrieve_response_code($response)) {
-			return array('title' => '', 'description' => '', 'topics' => array());
+			return array('title' => '', 'description' => '', 'topics' => array(), 'image' => '');
 		}
 
 		$content_type = strtolower((string) wp_remote_retrieve_header($response, 'content-type'));
 		if (! str_starts_with($content_type, 'text/html') && ! str_starts_with($content_type, 'application/xhtml+xml')) {
-			return array('title' => '', 'description' => '', 'topics' => array());
+			return array('title' => '', 'description' => '', 'topics' => array(), 'image' => '');
 		}
 
 		$body = wp_remote_retrieve_body($response);
 		if ('' === $body || ! class_exists(DOMDocument::class)) {
-			return array('title' => '', 'description' => '', 'topics' => array());
+			return array('title' => '', 'description' => '', 'topics' => array(), 'image' => '');
 		}
 
 		$previous = libxml_use_internal_errors(true);
@@ -39,7 +39,7 @@ final class Metadata_Fetcher {
 		libxml_clear_errors();
 		libxml_use_internal_errors($previous);
 		if (! $loaded) {
-			return array('title' => '', 'description' => '', 'topics' => array());
+			return array('title' => '', 'description' => '', 'topics' => array(), 'image' => '');
 		}
 
 		$xpath = new DOMXPath($document);
@@ -48,6 +48,8 @@ final class Metadata_Fetcher {
 			$title = trim((string) ($xpath->query('//title')->item(0)?->textContent ?? ''));
 		}
 		$description = $this->first_meta($xpath, array('property' => 'og:description', 'name' => 'description', 'name_fallback' => 'twitter:description'));
+		$image = $this->first_meta($xpath, array('property' => 'og:image:secure_url', 'property_fallback' => 'og:image', 'name' => 'twitter:image', 'name_fallback' => 'twitter:image:src'));
+		$image = Preview_Image::resolve($image, $url);
 		$topics = array();
 		$keywords = $xpath->query('//meta[translate(@name,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz")="keywords"]/@content')->item(0);
 		if (null !== $keywords) {
@@ -66,15 +68,14 @@ final class Metadata_Fetcher {
 			'title' => mb_substr(sanitize_text_field($title), 0, 200),
 			'description' => mb_substr(sanitize_textarea_field($description), 0, 500),
 			'topics' => $topics,
+			'image' => mb_substr($image, 0, URL::MAX_LENGTH),
 		);
 	}
 
 	/** @param array<string,string> $candidates */
 	private function first_meta(DOMXPath $xpath, array $candidates): string {
 		foreach ($candidates as $attribute => $value) {
-			if ('name_fallback' === $attribute) {
-				$attribute = 'name';
-			}
+			$attribute = str_replace('_fallback', '', $attribute);
 			$query = sprintf('//meta[translate(@%1$s,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz")="%2$s"]/@content', $attribute, strtolower($value));
 			$meta = $xpath->query($query)->item(0);
 			if (null !== $meta && '' !== trim((string) $meta->nodeValue)) {
